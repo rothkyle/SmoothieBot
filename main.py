@@ -3,6 +3,7 @@ import os
 import requests
 import json
 import random
+import dill
 from discord.ext import commands
 from keep_alive import keep_alive
 import asyncio
@@ -152,9 +153,9 @@ async def lfg(ctx, goal, game):
   f.write(str(game_actual) + "\n")
   #goal_actual line 5
   f.write(str(goal_actual) + "\n")
-  #guild id line 8
+  #guild id line 6
   f.write(str(guild) + "\n")
-  #guild name line 9
+  #guild name line 7
   f.write(str(guildname) + "\n")
   f.close()
   print(ctx.member.id)
@@ -172,10 +173,15 @@ async def on_raw_reaction_add(payload):
     fileNames.append(file + ".txt")
   #check if message id's match
   for x in fileNames:
+
     f = open(x, "r+")
-    messageid = f.readline()
+    messageid = f.readline().rstrip('\n')
+    print("Matching...")
+    print(str(messageid))
+    print(str(payload.message_id) + "\n")
     #creates list if message id match is found
     if (int(messageid) == int(payload.message_id)):
+      print("Match found!")
       p = open(x, "r+")
       global file_name
       file_name = p
@@ -197,14 +203,17 @@ async def on_raw_reaction_add(payload):
       print(str(guild))
       for x in range(7,len(file_data)):
         name = file_data[x]
+        name.rstrip('\n')
         print(name)
-        member_obj = client.guilds.get_user(name)
+        member_obj = await client.fetch_user(name)
         print(str(member_obj))
         names.append(member_obj)
       count = len(file_data) - 7
       global send_out
+      for x in file_data:
+        print(x)
+      #print(file_data)
       break
-      print(file_data)
   if str(payload.emoji.name) == "✅" and int(payload.message_id) == int(messageid):
     if payload.member.bot == False:
       await msg.remove_reaction("✅", payload.member)
@@ -317,44 +326,39 @@ async def checkstreamers():
         print(e)
         await asyncio.sleep(5)
 
+# @client.command()
+# async def check(ctx):
+#   message = await ctx.send("Woop")
+#   message = message.id
+#   outfile = open("moo",'wb')
+#   dill.dump(message, outfile)
+#   outfile.close()
+#   infile = open("moo", 'rb')
+#   speak = dill.load(infile)
+#   await ctx.send(speak)
+
 @client.command()
-async def check(ctx, username):
-  TWITCH_STREAM_API_ENDPOINT_V5 = "https://api.twitch.tv/kraken/streams/{}"
+async def zoop(ctx):
+  playerid = "279056911926689793"
+  discordFetched = await client.fetch_user(playerid)
+  await ctx.send(discordFetched.mention)
+  channel_id = 810776540601647107
+  message_id = 857162619857010699
+  channel = client.get_channel(channel_id)
+  in_embed = await channel.fetch_message(message_id)
+  new_info = discord.Embed(
+    title = ("zoop"),
+    description = "wowie",
+    color = discord.Color.blue()
+  )
+  #send_out = member.mention list of all players    REMEMBER
+  #new_info.add_field(name = "Players:", value = send_out, inline = True)
+  await in_embed.edit(embed = new_info)
 
-  API_HEADERS = {
-      'Client-ID' : '7d7f4fs5aqfba69rnm14i5utxg8p8s',
-      'Accept' : 'application/vnd.twitchtv.v5+json',
-  }
-
-  reqSession = requests.Session()
-  def getId(user):
-    response = requests.get("https://id.twitch.tv/oauth2/token",)
-    print(response.content)
-    json_data = response.json()
-    print(json_data)
-  getId(username)
-  def checkUser(userID): #returns true if online, false if not
-      url = TWITCH_STREAM_API_ENDPOINT_V5.format(userID)
-
-      try:
-          req = reqSession.get(url, headers=API_HEADERS)
-          jsondata = req.json()
-          if 'stream' in jsondata:
-              if jsondata['stream'] is not None: #stream is online
-                  return True
-              else:
-                  return False
-      except Exception as e:
-          print("Error checking user: ", e)
-          return False
-  await ctx.send(checkUser(username))
-  #username = user id
-  #client id: 7d7f4fs5aqfba69rnm14i5utxg8p8s
-  #secret: i5h19gy6ndwc32hpx2wxbmrnw5wzkm
-  #"https://api.twitch.tv/helix/users?login=" + user
 
 @client.command()
 async def tester(ctx):
+  ctx.send("@Sanic#8139")
   def fileCounter():
     n = open("fileNumbers.txt","r+")
     for line in n:
@@ -383,7 +387,6 @@ async def tester(ctx):
       print("File count subtracted")
       print("Number of lfg files: " + str(new))
   await fileChanger("add")
-
 
 keep_alive()
 client.run(os.getenv('daKey'))
