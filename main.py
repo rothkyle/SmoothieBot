@@ -164,8 +164,6 @@ async def on_raw_reaction_add(payload):
     f = open(x, "r+")
     messageid = f.readline().rstrip('\n')
     print("Matching...")
-    print(str(messageid))
-    print(str(payload.message_id) + "\n")
     #creates list if message id match is found
     if (int(messageid) == int(payload.message_id)):
       print("Match found!")
@@ -237,19 +235,23 @@ async def on_raw_reaction_add(payload):
         os.remove(fileNameTrue)
         print("File count subtracted")
         #remove name of file from list
-        n.open("file_names.txt")
+        n = open("file_names.txt", "r+")
         global fileNameList
+        fileNameTrue.replace('.txt', '')
         fileNameList = []
-        fileNameTrue.rstrip(".txt")
+        print(fileNameTrue)
         #copies all number that dont match to file name to list then deletes and
         #rewrites whole file
         for num in n:
           fileName = num.rstrip('\n')
           if(fileName != fileNameTrue):
+            print(fileName + " made it")
             fileNameList.append(fileName)
-        n.truncate()
+        n.truncate(0)
+        n.close()
+        n = open("file_names.txt", "a")
         for name in fileNameList:
-          n.write(str(name))
+          n.write(str(name) + "\n")
         n.close()
       #not met goal
       else:
