@@ -3,7 +3,6 @@ import os
 import requests
 import json
 import random
-import dill
 from discord.ext import commands
 from keep_alive import keep_alive
 import asyncio
@@ -84,18 +83,9 @@ send_out = str()
 channel_id = int(0)
 @client.command()
 async def lfg(ctx, goal, game):
-  global count
-  global in_embed
-  count = int(0)
-  global names
   names.clear()
-  global goal_actual
   goal_actual = int(goal)
-  global game_actual
   game_actual = game
-  global messageid
-  global channel_id
-  global message
   #embed
   embed = discord.Embed(
       title = ("LFG for " + game_actual),
@@ -108,7 +98,6 @@ async def lfg(ctx, goal, game):
   messageid = message.id
   channel_id = message.channel.id
   print("Channel id: " + str(channel_id))
-  print ("Created counter for " + game_actual + " in " + message.guild.name)
   await message.add_reaction("✅")
   await message.add_reaction("🚫")
 
@@ -121,7 +110,6 @@ async def lfg(ctx, goal, game):
   for line in f:
     fileNames = line.rstrip('\n')
     nums.append(int(fileNames))
-  print(nums)
   #assign new file a name
   for x in range(0,100):
     checker = 0
@@ -141,8 +129,6 @@ async def lfg(ctx, goal, game):
   embed_id = in_embed.id
   guild = ctx.guild.id
   guildname = ctx.guild
-  print(guildname)
-  print(guild)
   #message id line 1
   f.write(str(messageid) + "\n")
   #channel id line 2
@@ -158,7 +144,7 @@ async def lfg(ctx, goal, game):
   #guild name line 7
   f.write(str(guildname) + "\n")
   f.close()
-  print(ctx.member.id)
+  print ("Created counter for " + game_actual + " in " + message.guild.name)
 
 
 #reaction checker
@@ -173,7 +159,8 @@ async def on_raw_reaction_add(payload):
     fileNames.append(file + ".txt")
   #check if message id's match
   for x in fileNames:
-
+    global fileNameTrue
+    fileNameTrue = x
     f = open(x, "r+")
     messageid = f.readline().rstrip('\n')
     print("Matching...")
@@ -182,6 +169,7 @@ async def on_raw_reaction_add(payload):
     #creates list if message id match is found
     if (int(messageid) == int(payload.message_id)):
       print("Match found!")
+      count = 0
       p = open(x, "r+")
       global file_name
       file_name = p
@@ -192,7 +180,7 @@ async def on_raw_reaction_add(payload):
       messageid = int(file_data[0])
       embed_id = int(file_data[2])
       game_actual = file_data[3]
-      goal_actual = file_data[4]
+      goal_actual = int(file_data[4])
       guild_id = int(file_data[5])
       guild = file_data[6]
       names = []
@@ -201,27 +189,26 @@ async def on_raw_reaction_add(payload):
       in_embed = await channel.fetch_message(embed_id)
       guild = client.get_guild(guild_id)
       print(str(guild))
+      #retrieve player ids from files
       for x in range(7,len(file_data)):
-        name = file_data[x]
-        name.rstrip('\n')
-        print(name)
-        member_obj = await client.fetch_user(name)
-        print(str(member_obj))
+        playerid = file_data[x]
+        playerid.rstrip('\n')
+        member_obj = await client.fetch_user(playerid)
         names.append(member_obj)
+        count += 1
       count = len(file_data) - 7
       global send_out
-      for x in file_data:
-        print(x)
       #print(file_data)
       break
   if str(payload.emoji.name) == "✅" and int(payload.message_id) == int(messageid):
     if payload.member.bot == False:
       await msg.remove_reaction("✅", payload.member)
       if payload.message_id == messageid and payload.member.bot == False and payload.member not in names:
-          print("oi")
           send_out = ""
+          #retrieve member id from person who reacted
           names.append(payload.member)
-          member = str(payload.member)
+          member = str(payload.member.id)
+          #write id to file
           file_name.write(member + "\n")
           count += 1
           for member in names:
@@ -247,8 +234,23 @@ async def on_raw_reaction_add(payload):
           send_out += (member.mention)
         await channel.send(send_out)
         names.clear()
-        message = ""
-      
+        os.remove(fileNameTrue)
+        print("File count subtracted")
+        #remove name of file from list
+        n.open("file_names.txt")
+        global fileNameList
+        fileNameList = []
+        fileNameTrue.rstrip(".txt")
+        #copies all number that dont match to file name to list then deletes and
+        #rewrites whole file
+        for num in n:
+          fileName = num.rstrip('\n')
+          if(fileName != fileNameTrue):
+            fileNameList.append(fileName)
+        n.truncate()
+        for name in fileNameList:
+          n.write(str(name))
+        n.close()
       #not met goal
       else:
         print("Detected reaction from " + str(payload.member) + ". There are is now " , count ,  " people ready.")
@@ -256,8 +258,8 @@ async def on_raw_reaction_add(payload):
   #remove from lfg
   if str(payload.emoji.name) == "🚫" and payload.message_id == messageid:
     if payload.member.bot == False:
-      await message.remove_reaction("🚫", payload.member)
-      if payload.message_id == messageid and payload.member.bot == False and payload.member in names:
+      await msg.remove_reaction("🚫", payload.member)
+      if payload.member in names:
         send_out = ""
         count -= 1
         names.remove(payload.member)
@@ -276,7 +278,10 @@ async def on_raw_reaction_add(payload):
       )
       new_info.add_field(name = "Players:", value = send_out, inline = True)
       await in_embed.edit(embed=new_info)
-      await message.remove_reaction("🚫", payload.member)
+      await msg.remove_reaction("🚫", payload.member)
+    else:
+      print(payload.member.name + " can't leave queue while not in queue")
+
 @client.command()
 async def info(ctx, file, adsub , stream):
   newList = []
@@ -387,6 +392,8 @@ async def tester(ctx):
       print("File count subtracted")
       print("Number of lfg files: " + str(new))
   await fileChanger("add")
+
+  
 
 keep_alive()
 client.run(os.getenv('daKey'))
