@@ -5,6 +5,9 @@ import json
 import random
 from discord.ext import commands
 from keep_alive import keep_alive
+from datetime import datetime
+import pytz
+from datetime import timedelta
 
 client = commands.Bot(command_prefix="%")
 streams = os.getenv('streams')
@@ -80,21 +83,21 @@ async def weather(ctx, city):
 		print("Request successful for " + city + "!")
 		#makes embed in discord server
 		embed = discord.Embed(title="Weather",
-		                      description="Weather in " + city + ", " +
-		                      weather_country,
-		                      color=discord.Color.red())
+    description="Weather in " + city + ", " +
+    weather_country,
+    color=discord.Color.red())
 		embed.add_field(name="Feels like:",
-		                value=weather_feels_like + "ºF",
-		                inline=True)
+    value=weather_feels_like + "ºF",
+    inline=True)
 		embed.add_field(name="Humidity:",
-		                value=weather_humidity + "%",
-		                inline=True)
+    value=weather_humidity + "%",
+    inline=True)
 		embed.add_field(name="Description:",
-		                value=weather_description,
-		                inline=True)
+    value=weather_description,
+    inline=True)
 		embed.add_field(name="Cloudiness:",
-		                value=weather_clouds + "%",
-		                inline=True)
+    value=weather_clouds + "%",
+    inline=True)
 		await ctx.send(embed=embed)
 		#await ctx.send("Feels like " + weather_feels_like + "ºF\nHumidity: " + weather_humidity + "%\nDescription: " + weather_clouds)
 		print(response.status_code)
@@ -141,12 +144,10 @@ async def lfg(ctx, goal, game):
 	game_actual = game
 	#embed
 	embed = discord.Embed(title=("LFG for " + game_actual),
-	                      description="People playing:",
-	                      color=discord.Color.blue())
+  description="People playing:",
+  color=discord.Color.blue())
 	embed.add_field(name="Players:", value="none", inline=True)
-	message = await ctx.send("React to this message if you want to play " +
-	                         game + ". We need " + goal +
-	                         " people. React with ✅ to join and 🚫 to leave.")
+	message = await ctx.send("React to this message if you want to play " + game + ". We need " + goal + " people. React with ✅ to join and 🚫 to leave.")
 	in_embed = await ctx.send(embed=embed)
 	messageid = message.id
 	channel_id = message.channel.id
@@ -168,7 +169,6 @@ async def lfg(ctx, goal, game):
 		for val in nums:
 			if (val == x):
 				checker += 1
-		print("CHECKER: " + str(checker))
 		if (checker == 0):
 			files = x
 			f.write(str(files) + "\n")
@@ -209,6 +209,7 @@ async def on_raw_reaction_add(payload):
     for x in f:
       file = x.rstrip('\n')
       fileNames.append(file + ".txt")
+    f.close()
 		#check if message id's match
     for x in fileNames:
       global fileNameTrue
@@ -217,13 +218,10 @@ async def on_raw_reaction_add(payload):
       messageid = int(f.readline().rstrip('\n'))
       #creates list if message id match is found
       if (int(messageid) == int(payload.message_id)):
-        print("Match found!")
         count = 0
         global realFileName
         realFileName = x
         p = open(x, "r+")
-        global file_name
-        file_name = p
         for x in p:
           file = x.rstrip('\n')
           file_data.append(file)
@@ -251,75 +249,64 @@ async def on_raw_reaction_add(payload):
         global send_out
         #print(file_data)
         break
-    if str(payload.emoji.name) == "✅" and int(
-        payload.message_id) == int(messageid):
-      if payload.member.bot == False:
-        await msg.remove_reaction("✅", payload.member)
-        if payload.message_id == messageid and payload.member.bot == False and payload.member not in names:
+    if(payload.message_id == messageid):
+      if str(payload.emoji.name) == "✅":
+        if payload.member not in names:
           send_out = ""
           #retrieve member id from person who reacted
           names.append(payload.member)
           member = str(payload.member.id)
           #write id to file
-          file_name.write(member + "\n")
+          p.write(member + "\n")
           count += 1
           for member in names:
             print(str(member))
             send_out += (member.mention + "\n")
           des = str("People playing: " + str(count))
-          new_info = discord.Embed(title=("LFG for " +
-                                          str(game_actual)),
-                                    description=des,
-                                    color=discord.Color.blue())
-          new_info.add_field(name="Players:",
-                              value=send_out,
-                              inline=True)
+          new_info = discord.Embed(title=("LFG for " + str(game_actual)), description=des, color=discord.Color.blue())
+          new_info.add_field(name="Players:", value=send_out, inline=True)
           await in_embed.edit(embed=new_info)
+          p.close()
+
+          #met goal
+          if (count == goal_actual):
+            send_out = ""
+            print("Goal has been reached.")
+            await channel.send("We now have " + str(goal_actual) + " for " + str(game_actual) + "!")
+            for member in names:
+              send_out += (member.mention + "\n")
+            await channel.send(send_out)
+            names.clear()
+            os.remove(fileNameTrue)
+            print("File count subtracted")
+            #remove name of file from list
+            n = open("file_names.txt", "r+")
+            global fileNameList
+            fileNameTrue = fileNameTrue.replace('.txt', '')
+            fileNameList = []
+            print(fileNameTrue)
+            #copies all number that dont match to file name to list then deletes and
+            #rewrites whole file
+            for num in n:
+              fileName = num.rstrip('\n')
+              if (fileName != fileNameTrue):
+                fileNameList.append(fileName)
+            n.truncate(0)
+            n.close()
+            n = open("file_names.txt", "a")
+            for name in fileNameList:
+              n.write(str(name) + "\n")
+            n.close()
+          #not met goal
+          else:
+            print("Detected reaction from " + str(payload.member) + ". There are is now ", count, " out of ", goal_actual, " people ready to play " + game_actual + ".")
         else:
           print(payload.member.name + " already in queue.")
-
-        #met goal
-        if (count == goal_actual):
-          send_out = ""
-          print("Goal has been reached.")
-          await channel.send("We now have " + str(goal_actual) +
-                              " for " + str(game_actual) + "!")
-          for member in names:
-            send_out += (member.mention)
-          await channel.send(send_out)
-          names.clear()
-          os.remove(fileNameTrue)
-          print("File count subtracted")
-          #remove name of file from list
-          n = open("file_names.txt", "r+")
-          global fileNameList
-          fileNameTrue = fileNameTrue.replace('.txt', '')
-          fileNameList = []
-          print(fileNameTrue)
-          #copies all number that dont match to file name to list then deletes and
-          #rewrites whole file
-          for num in n:
-            fileName = num.rstrip('\n')
-            if (fileName != fileNameTrue):
-              fileNameList.append(fileName)
-          n.truncate(0)
-          n.close()
-          n = open("file_names.txt", "a")
-          for name in fileNameList:
-            n.write(str(name) + "\n")
-          n.close()
-        #not met goal
-        else:
-          print(
-              "Detected reaction from " + str(payload.member) +
-              ". There are is now ", count, " out of ", goal_actual,
-              " people ready to play " + game_actual + ".")
-    #remove from lfg
-    elif str(
-        payload.emoji.name) == "🚫" and payload.message_id == messageid:
-      if payload.member.bot == False:
-        await msg.remove_reaction("🚫", payload.member)
-        if payload.member.bot == False and payload.member in names:
+          p.close()
+        await msg.remove_reaction("✅", payload.member)
+      #remove from lfg
+      elif str(payload.emoji.name) == "🚫":
+        if payload.member in names:
           send_out = ""
           count -= 1
           names.remove(payload.member)
@@ -331,13 +318,8 @@ async def on_raw_reaction_add(payload):
             for member in names:
               send_out += (member.mention + "\n")
           #embed
-          new_info = discord.Embed(title=("LFG for " +
-                                          str(game_actual)),
-                                    description=des,
-                                    color=discord.Color.blue())
-          new_info.add_field(name="Players:",
-                              value=send_out,
-                              inline=True)
+          new_info = discord.Embed(title=("LFG for " + str(game_actual)),description=des, color=discord.Color.blue())
+          new_info.add_field(name="Players:", value=send_out, inline=True)
           await in_embed.edit(embed=new_info)
           #remove id from file
           fileInfo = []
@@ -352,18 +334,23 @@ async def on_raw_reaction_add(payload):
           for line in fileInfo:
             n.write(str(line) + "\n")
           n.close()
+        await msg.remove_reaction("🚫", payload.member)
 
 
-# @client.command()
-# async def check(ctx):
-#   message = await ctx.send("Woop")
-#   message = message.id
-#   outfile = open("moo",'wb')
-#   dill.dump(message, outfile)
-#   outfile.close()
-#   infile = open("moo", 'rb')
-#   speak = dill.load(infile)
-#   await ctx.send(speak)
+@client.command()
+async def check(ctx):
+  denver = pytz.timezone('America/Denver') 
+  denver_time = datetime.now(denver)
+  #formattedDenver = denver_time.strftime("%m-%d-%Y %H:%M:%S")
+  goalTime = denver_time + timedelta(hours = 1)
+  goalString = str(goalTime)
+  # write formatted goal to file
+  formattedGoal = goalString[0:19]
+  print(formattedGoal)
+  # this is for file extraction
+  extractedNew = datetime.strptime(formattedGoal, "%Y-%m-%d %H:%M:%S")
+  print(extractedNew)
+  
 
 #@client.command()
 #async def zoop(ctx):
