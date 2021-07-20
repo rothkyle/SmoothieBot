@@ -142,72 +142,75 @@ async def flip(ctx):
 
 @client.command()
 async def lfg(ctx, goal, game, numHours):
-  goal_actual = int(goal)
-  game_actual = game
-  denver = pytz.timezone('America/Denver') 
-  denver_time = datetime.now(denver)
-  goalTime = denver_time + timedelta(hours = float(numHours))
-  goalString = str(goalTime)
-  # write formatted goal to file
-  formattedGoal = goalString[0:19]
-  #embed
-  embed = discord.Embed(title=("LFG for " + game_actual),
-  description="People playing:",
-  color=discord.Color.blue())
-  embed.add_field(name="Players:", value="none", inline=True)
-  embed.add_field(name="Goal Time:", value=str(formattedGoal), inline=False)
-  message = await ctx.send("React to this message if you want to play " + game + ". We need " + goal + " people. React with ✅ to join and 🚫 to leave.")
-  in_embed = await ctx.send(embed=embed)
-  messageid = message.id
-  channel_id = message.channel.id
-  print("Channel id: " + str(channel_id))
-  await message.add_reaction("✅")
-  await message.add_reaction("🚫")
+  if numHours <= 200 and numHours > 0:
+    goal_actual = int(goal)
+    game_actual = game
+    denver = pytz.timezone('America/Denver') 
+    denver_time = datetime.now(denver)
+    goalTime = denver_time + timedelta(hours = float(numHours))
+    goalString = str(goalTime)
+    # write formatted goal to file
+    formattedGoal = goalString[0:19]
+    #embed
+    embed = discord.Embed(title=("LFG for " + game_actual),
+    description="People playing: 0",
+    color=discord.Color.blue())
+    embed.add_field(name="Players:", value="N/A", inline=True)
+    embed.add_field(name="Goal Time:", value=str(formattedGoal), inline=False)
+    message = await ctx.send("React to this message if you want to play " + game + ". We need " + goal + " people. React with ✅ to join and 🚫 to leave.")
+    in_embed = await ctx.send(embed=embed)
+    messageid = message.id
+    channel_id = message.channel.id
+    print("Channel id: " + str(channel_id))
+    await message.add_reaction("✅")
+    await message.add_reaction("🚫")
 
-  #store lfg message information in text file
-  nums = [0]
-  files = -1
-  #makes list of all file names
-  f = open("file_names.txt", "r+")
-  for line in f:
-    fileNames = line.rstrip('\n')
-    nums.append(int(fileNames))
-  #assign new file a name
-  for x in range(0, 100):
-    checker = 0
-    for val in nums:
-      if (val == x):
-        checker += 1
-    if checker == 0:
-      files = x
-      f.write(str(files) + "\n")
-      break
-  for line in f:
-    fileNames = line.rstrip('\n')
-    nums.append(fileNames)
-  print("NAME OF NEW FILE: " + str(files))
-  f = open(str(files) + ".txt", "w")
-  embed_id = in_embed.id
-  guild = ctx.guild.id
-  guildname = ctx.guild
-  #message id line 1
-  f.write(str(messageid) + "\n")
-  #channel id line 2
-  f.write(str(channel_id) + "\n")
-  #emebed_id line 3
-  f.write(str(embed_id) + "\n")
-  #game_actual line 4
-  f.write(str(game_actual) + "\n")
-  #goal_actual line 5
-  f.write(str(goal_actual) + "\n")
-  #guild id line 6
-  f.write(str(guild) + "\n")
-  #guild name line 7
-  f.write(str(guildname) + "\n")
-  #goal time line 8
-  f.write(str(formattedGoal) + "\n")
-  f.close()
-  print("Created counter for " + game_actual + " in " + message.guild.name)
+    #store lfg message information in text file
+    nums = [0]
+    files = -1
+    #makes list of all file names
+    f = open("file_names.txt", "r+")
+    for line in f:
+      fileNames = line.rstrip('\n')
+      nums.append(int(fileNames))
+    #assign new file a name
+    for x in range(0, 100):
+      checker = 0
+      for val in nums:
+        if (val == x):
+          checker += 1
+      if checker == 0:
+        files = x
+        f.write(str(files) + "\n")
+        break
+    for line in f:
+      fileNames = line.rstrip('\n')
+      nums.append(fileNames)
+    print("NAME OF NEW FILE: " + str(files))
+    f = open(str(files) + ".txt", "w")
+    embed_id = in_embed.id
+    guild = ctx.guild.id
+    guildname = ctx.guild
+    #message id line 1
+    f.write(str(messageid) + "\n")
+    #channel id line 2
+    f.write(str(channel_id) + "\n")
+    #embed_id line 3
+    f.write(str(embed_id) + "\n")
+    #game_actual line 4
+    f.write(str(game_actual) + "\n")
+    #goal_actual line 5
+    f.write(str(goal_actual) + "\n")
+    #guild id line 6
+    f.write(str(guild) + "\n")
+    #guild name line 7
+    f.write(str(guildname) + "\n")
+    #goal time line 8
+    f.write(str(formattedGoal) + "\n")
+    f.close()
+    print("Created counter for " + game_actual + " in " + message.guild.name)
+  else:
+    await ctx.author.send("You can only set an lfg timer for >0 to 200 hours.")
 
 #reaction checker
 @client.event
@@ -277,7 +280,7 @@ async def on_raw_reaction_add(payload):
           des = str("People playing: " + str(count))
           new_info = discord.Embed(title=("LFG for " + str(game_actual)), description=des, color=discord.Color.blue())
           new_info.add_field(name="Players:", value=send_out, inline=True)
-          new_info.add_field(name="Goal Time", value=goal_time, inline=False)
+          new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
           await in_embed.edit(embed=new_info)
           p.close()
           await msg.remove_reaction("✅", payload.member)
@@ -325,14 +328,14 @@ async def on_raw_reaction_add(payload):
           print(str(payload.member) + " has left the lfg")
           des = str("People playing: " + str(count))
           if names == []:
-            send_out = "none"
+            send_out = "N/A"
           else:
             for member in names:
               send_out += (member.mention + "\n")
           #embed
           new_info = discord.Embed(title=("LFG for " + str(game_actual)),description=des, color=discord.Color.blue())
           new_info.add_field(name="Players:", value=send_out, inline=True)
-          new_info.add_field(name="Goal Time", value=goal_time, inline=False)
+          new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
           await in_embed.edit(embed=new_info)
           #remove id from file
           fileInfo = []
@@ -354,15 +357,59 @@ async def on_raw_reaction_add(payload):
 async def check():
   denver = pytz.timezone('America/Denver') 
   denver_time = datetime.now(denver)
-  #formattedDenver = denver_time.strftime("%m-%d-%Y %H:%M:%S")
-  goalTime = denver_time + timedelta(hours = 1)
-  goalString = str(goalTime)
+  formattedDenver = denver_time.strptime(str(denver_time)[0:19], "%Y-%m-%d %H:%M:%S")
+  #goalTime = denver_time + timedelta(hours = 1)
+  #goalString = str(goalTime)
   # write formatted goal to file
-  formattedGoal = goalString[0:19]
-  print(formattedGoal)
+  #formattedGoal = goalString[0:19]
+  #print(formattedGoal)
   # this is for file extraction
-  extractedNew = datetime.strptime(formattedGoal, "%Y-%m-%d %H:%M:%S")
-  print(extractedNew)
+  n = open("file_names.txt", "r+")
+  fileNameList = []
+  files_to_check = n.readlines()
+  for fileName in files_to_check:
+    curr_file = open(fileName.rstrip('\n') + ".txt", "r+")
+    file_data = curr_file.readlines()
+    if file_data == []:
+      break
+    curr_time = file_data[7].rstrip('\n')
+    extractedNew = datetime.strptime(curr_time, "%Y-%m-%d %H:%M:%S")
+    if(formattedDenver >= extractedNew): # goal time is passed
+      #delete file
+      embed_id = int(file_data[2])
+      game_actual = file_data[3]
+      channel = client.get_channel(int(file_data[1]))
+      in_embed = await channel.fetch_message(embed_id)
+      count = len(file_data) - 8
+      send_out = []
+      for x in range(8, len(file_data)):
+        playerid = file_data[x]
+        playerid.rstrip('\n')
+        member_obj = await client.fetch_user(playerid)
+        send_out.append(member_obj.mention + "\n")
+      if send_out == []:
+        send_out = "N/A"
+      #update embed
+      des = str("People playing: " + str(count))
+      new_info = discord.Embed(title=("LFG for " + str(game_actual)), description=des, color=discord.Color.red())
+      new_info.add_field(name="Players:", value=send_out, inline=True)
+      new_info.add_field(name="Goal Time:", value="Times up!", inline=False)
+      await in_embed.edit(embed=new_info)
+      os.remove(fileName.rstrip('\n') + ".txt")
+      f = open("file_names.txt", "r+")
+      for num in n:
+        temp_file = num.rstrip('\n')
+        if (temp_file != fileName.rstrip('\n')):
+          fileNameList.append(temp_file)
+      f.truncate(0)
+      f.close()
+      f = open("file_names.txt", "a")
+      for name in fileNameList:
+        f.write(str(name) + "\n")
+      f.close()
+  n.close()
+  #extractedNew = datetime.strptime(curr_time, "%Y-%m-%d %H:%M:%S")
+  #print(extractedNew)
   await asyncio.sleep(60)
   await check()
   
