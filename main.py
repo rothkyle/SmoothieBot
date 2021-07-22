@@ -180,7 +180,7 @@ async def lfg(ctx, goal, game, numHours):
       embed = discord.Embed(title=("LFG for " + game_actual), description="People playing: 0", color=discord.Color.blue())
       embed.add_field(name="Players:", value="N/A", inline=True)
       embed.add_field(name="Goal Time:", value=str(formattedGoal), inline=False)
-      message = await ctx.send("React to this message if you want to play " + game + ". We need " + goal + " people. React with ✅ to join and 🚫 to leave.")
+      message = await ctx.send("**React to this message if you want to play " + game + ". We need " + goal + " people. React with ✅ to join and 🚫 to leave.**")
       in_embed = await ctx.send(embed=embed)
       messageid = message.id
       channel_id = message.channel.id
@@ -289,110 +289,97 @@ async def on_raw_reaction_add(payload):
               break
       if (payload.message_id == messageid):
           if str(payload.emoji.name) == "✅":
-              if payload.member not in names:
-                  send_out = ""
-                  #retrieve member id from person who reacted
-                  names.append(payload.member)
-                  member = str(payload.member.id)
-                  #write id to file
-                  p.write(member + "\n")
-                  count += 1
-                  for member in names:
-                      print(str(member))
-                      send_out += (member.mention + "\n")
-                  des = str("People playing: " + str(count))
-                  new_info = discord.Embed(title=("LFG for " +
-                                                  str(game_actual)),
-                                            description=des,
-                                            color=discord.Color.blue())
-                  new_info.add_field(name="Players:",
-                                      value=send_out,
-                                      inline=True)
-                  new_info.add_field(name="Goal Time:",
-                                      value=goal_time,
-                                      inline=False)
-                  await in_embed.edit(embed=new_info)
-                  p.close()
-                  await msg.remove_reaction("✅", payload.member)
+            if payload.member not in names:
+              send_out = ""
+              #retrieve member id from person who reacted
+              names.append(payload.member)
+              member = str(payload.member.id)
+              #write id to file
+              p.write(member + "\n")
+              count += 1
+              for member in names:
+                  print(str(member))
+                  send_out += (member.mention + "\n")
+              des = str("People playing: " + str(count))
+              new_info = discord.Embed(title=("LFG for " + str(game_actual)), description=des, color=discord.Color.blue())
+              new_info.add_field(name="Players:", value=send_out, inline=True)
+              new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
+              await in_embed.edit(embed=new_info)
+              p.close()
+              await msg.remove_reaction("✅", payload.member)
 
-                  #met goal
-                  if (count == goal_actual):
-                      send_out = ""
-                      print("Goal has been reached.")
-                      await channel.send("We now have " + str(goal_actual) +
-                                          " for " + str(game_actual) + "!")
-                      for member in names:
-                          send_out += (member.mention + "\n")
-                      await channel.send(send_out)
-                      names.clear()
-                      os.remove(fileNameTrue)
-                      print("File count subtracted")
-                      #remove name of file from list
-                      n = open("file_names.txt", "r+")
-                      global fileNameList
-                      fileNameTrue = fileNameTrue.replace('.txt', '')
-                      fileNameList = []
-                      print(fileNameTrue)
-                      #copies all number that dont match to file name to list then deletes and
-                      #rewrites whole file
-                      for num in n:
-                          fileName = num.rstrip('\n')
-                          if (fileName != fileNameTrue):
-                              fileNameList.append(fileName)
-                      n.truncate(0)
-                      n.close()
-                      n = open("file_names.txt", "a")
-                      for name in fileNameList:
-                          n.write(str(name) + "\n")
-                      n.close()
-                  #not met goal
-                  else:
-                      print(
-                          "Detected reaction from " + str(payload.member) +
-                          ". There are is now ", count, " out of ",
-                          goal_actual,
-                          " people ready to play " + game_actual + ".")
-              else:
-                  print(payload.member.name + " already in queue.")
-                  p.close()
-
-            #remove from lfg
-            elif str(payload.emoji.name) == "🚫" and payload.member in names:
+              #met goal
+              if (count == goal_actual):
                 send_out = ""
-                count -= 1
-                names.remove(payload.member)
-                print(str(payload.member) + " has left the lfg")
-                des = str("People playing: " + str(count))
-                if names == []:
-                    send_out = "N/A"
-                else:
-                    for member in names:
-                        send_out += (member.mention + "\n")
-                #embed
-                new_info = discord.Embed(title=("LFG for " + str(game_actual)),
-                                         description=des,
-                                         color=discord.Color.blue())
-                new_info.add_field(name="Players:",
-                                   value=send_out,
-                                   inline=True)
-                new_info.add_field(name="Goal Time:",
-                                   value=goal_time,
-                                   inline=False)
-                await in_embed.edit(embed=new_info)
-                #remove id from file
-                fileInfo = []
-                n = open(realFileName, "r+")
-                for line in n:
-                    information = line.rstrip('\n')
-                    if (str(information) != str(payload.member.id)):
-                        fileInfo.append(str(information))
+                print("Goal has been reached.")
+                await channel.send("We now have " + str(goal_actual) +
+                                    " for " + str(game_actual) + "!")
+                for member in names:
+                    send_out += (member.mention + "\n")
+                await channel.send(send_out)
+                names.clear()
+                os.remove(fileNameTrue)
+                print("File count subtracted")
+                #remove name of file from list
+                n = open("file_names.txt", "r+")
+                global fileNameList
+                fileNameTrue = fileNameTrue.replace('.txt', '')
+                fileNameList = []
+                print(fileNameTrue)
+                #copies all number that dont match to file name to list then deletes and
+                #rewrites whole file
+                for num in n:
+                    fileName = num.rstrip('\n')
+                    if (fileName != fileNameTrue):
+                        fileNameList.append(fileName)
                 n.truncate(0)
                 n.close()
-                n = open(realFileName, "a")
-                for line in fileInfo:
-                    n.write(str(line) + "\n")
+                n = open("file_names.txt", "a")
+                for name in fileNameList:
+                    n.write(str(name) + "\n")
                 n.close()
-                await msg.remove_reaction("🚫", payload.member)
+              #not met goal
+              else:
+                  print(
+                      "Detected reaction from " + str(payload.member) +
+                      ". There are is now ", count, " out of ",
+                      goal_actual,
+                      " people ready to play " + game_actual + ".")
+            else:
+                print(payload.member.name + " already in queue.")
+                p.close()
+
+            #remove from lfg
+          elif str(payload.emoji.name) == "🚫" and payload.member in names:
+            send_out = ""
+            count -= 1
+            names.remove(payload.member)
+            print(str(payload.member) + " has left the lfg")
+            des = str("People playing: " + str(count))
+            if names == []:
+              send_out = "N/A"
+            else:
+              for member in names:
+                send_out += (member.mention + "\n")
+            #embed
+            new_info = discord.Embed(title=("LFG for " + str(game_actual)), description=des, color=discord.Color.blue())
+            new_info.add_field(name="Players:", value=send_out, inline=True)
+            new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
+            await in_embed.edit(embed=new_info)
+            #remove id from file
+            fileInfo = []
+            n = open(realFileName, "r+")
+            for line in n:
+              information = line.rstrip('\n')
+              if (str(information) != str(payload.member.id)):
+                fileInfo.append(str(information))
+            n.truncate(0)
+            n.close()
+            n = open(realFileName, "a")
+            for line in fileInfo:
+              n.write(str(line) + "\n")
+            n.close()
+            await msg.remove_reaction("🚫", payload.member)
 
 
 @client.command()
