@@ -81,10 +81,18 @@ async def play(ctx, url : str):
     return
 
   voiceChannel = discord.utils.get(ctx.guild.voice_channels, name='General')
-  if(voiceChannel != ctx.message.author.voice.channel):
-    await voiceChannel.connect()
-  voice = discord.utils.get(client.voice_clients, guild=ctx.guild)
 
+  #join command with no sends
+  voice = discord.utils.get(client.voice_clients, guild=ctx.guild)
+  voice_channel = ctx.message.author.voice.channel
+  if voice == None: #if bot not in channel or not in author channel
+    await voice_channel.connect()
+  else:
+    if ctx.voice_client.channel != ctx.author.voice.channel:
+      await ctx.voice_client.disconnect()
+      await voice_channel.connect()
+  
+  voice = discord.utils.get(client.voice_clients, guild=ctx.guild)
   ydl_opts = {
     'format': '251',
   }
@@ -178,20 +186,27 @@ async def weather(ctx, city):
 
 @client.command()
 async def ball(ctx):
-    #request
-    print("Retrieving...")
-    response = requests.get("https://8ball.delegator.com/magic/JSON/randomstuff")
-    print(response.content)
-    json_data = json.loads(response.text)
-    #use key to answer
-    answer = str(json_data["magic"]["answer"])
-    await ctx.send(answer)
+  #request
+  print("Retrieving...")
+  response = requests.get("https://8ball.delegator.com/magic/JSON/randomstuff")
+  print(response.content)
+  json_data = json.loads(response.text)
+  #use key to answer
+  answer = str(json_data["magic"]["answer"])
+  await ctx.send(answer)
 
 
 @client.command()
 async def hello(ctx):
   await ctx.send('oi punk :snake:')
 
+@client.command()
+async def speech(ctx, message: str):
+  url = "https://voicerss-text-to-speech.p.rapidapi.com/"
+  querystring = {"key":"97a091fdc2ba41efaee26ed3e7ef22e6","hl":"en-us","v":"John","src":message,"f":"8khz_8bit_mono","c":"mp3","r":"0"}
+  headers = {'x-rapidapi-host': 'voicerss-text-to-speech.p.rapidapi.com'}
+  response = requests.request("GET", url, headers=headers, params=querystring)
+  print(response.content)
 
 @client.command()
 async def flip(ctx):
