@@ -71,6 +71,7 @@ async def leave(ctx):
 async def play(ctx, url : str):
   await join(ctx)
   voice = discord.utils.get(client.voice_clients, guild = ctx.guild)
+  
 
 @client.command()
 async def pause(ctx):
