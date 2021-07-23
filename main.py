@@ -50,13 +50,16 @@ async def on_member_join(member):
 async def join(ctx):
   user = ctx.message.author
   voice_channel = user.voice.channel
-
   voice = discord.utils.get(client.voice_clients, guild=ctx.guild)
 
-  if voice == None or voice != voice_channel: #if bot not in channel or not in author channel
+  if voice == None: #if bot not in channel or not in author channel
     await voice_channel.connect()
   else:
-    await ctx.send("**Already in current channel.**")
+    if ctx.voice_client.channel != ctx.author.voice.channel:
+      await ctx.voice_client.disconnect()
+      await voice_channel.connect()
+    else:
+      await ctx.send("**Already in current channel.**")
 
 
 @client.command()
@@ -69,9 +72,28 @@ async def leave(ctx):
 
 @client.command()
 async def play(ctx, url : str):
-  await join(ctx)
-  voice = discord.utils.get(client.voice_clients, guild = ctx.guild)
-  
+  song_there = os.path.isfile("song.webm")
+  try:
+    if song_there:
+      os.remove("song.webm")
+  except PermissionError:
+    await ctx.send("Wait for the current playing music to end or use the 'stop' command")
+    return
+
+  voiceChannel = discord.utils.get(ctx.guild.voice_channels, name='General')
+  if(voiceChannel != ctx.message.author.voice.channel):
+    await voiceChannel.connect()
+  voice = discord.utils.get(client.voice_clients, guild=ctx.guild)
+
+  ydl_opts = {
+    'format': '251',
+  }
+  with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+    ydl.download([url])
+  for file in os.listdir("./"):
+    if file.endswith(".webm"):
+      os.rename(file, "song.webm")
+  voice.play(discord.FFmpegOpusAudio("song.webm"))
 
 @client.command()
 async def pause(ctx):
