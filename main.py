@@ -317,139 +317,119 @@ async def on_raw_reaction_add(payload):
       guild_id = int(all_lfg[message_id]['guild_id'])
       guild = all_lfg[message_id]['guild_name']
       goal_time = str(all_lfg[message_id]['goal_time'])
-      members = all_lfg[message_id]['members']
-      count = len(members)
-      member = str(payload.member.id)
+      members_list = all_lfg[message_id]['members']
+      members = []
+      for player_id in members_list:
+        member_obj = await client.fetch_user(int(player_id))
+        members.append(member_obj)
+      count = len(members_list)
+      member = payload.member
       # fetch lfg objects
       channel = client.get_channel(payload.channel_id)
       msg = await channel.fetch_message(int(message_id))
       in_embed = await channel.fetch_message(embed_id)
       guild = client.get_guild(guild_id)
-    send_out = ""
-
-    if str(payload.emoji.name) == "✅":
-      if member not in members:
-        all_lfg[message_id]['members'].append(member)
-        count += 1
-        for person in members:
-          send_out += (person.mention + "\n")
-        des = str("People playing: " + str(count))
-        new_info = discord.Embed(title=("LFG for " + str(game_actual)), description=des, color=discord.Color.blue())
-        new_info.add_field(name="Players:", value=send_out, inline=True)
-        new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
-        await in_embed.edit(embed=new_info)
-        await msg.remove_reaction("✅", payload.member)
-
-        #met goal
-        if (count == goal_actual):
-          print("Goal has been reached.")
-          await channel.send("We now have " + str(goal_actual) + " for " + str(game_actual) + "!")
-          for person in members:
-            await person.send(f"Your group for {game_actual} in {guild} is ready!")
-          all_lfg.pop(message_id)
-          print("Removed lfg from database.")
-        #not met goal
-        else:
-          print("Detected reaction from " + str(payload.member) + ". There are is now ", count, " out of ", goal_actual, " people ready to play " + game_actual + ".")
-        
-        # dump new info into lfg json
-        with open("lfg.json", "w") as file:
-          json.dump(all_lfg, file)
-      else:
-        print(payload.member.name + " already in queue.")
-
-      #remove from lfg
-    elif str(payload.emoji.name) == "🚫":
-      if member in members:
-        count -= 1
-        members.remove(member)
-        print(str(payload.member) + " has left the lfg")
-        des = str("People playing: " + str(count))
-        if members == []:
-          send_out = "N/A"
-        else:
+      send_out = ""
+      
+      if str(payload.emoji.name) == "✅":
+        if member not in members:
+          all_lfg[message_id]['members'].append(str(member.id))
+          members.append(member)
+          count += 1
           for person in members:
             send_out += (person.mention + "\n")
-        #embed
-        new_info = discord.Embed(title=("LFG for " + str(game_actual)), description=des, color=discord.Color.blue())
-        new_info.add_field(name="Players:", value=send_out, inline=True)
-        new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
-        await in_embed.edit(embed=new_info)
+          des = str("People playing: " + str(count))
+          new_info = discord.Embed(title=("LFG for " + str(game_actual)), description=des, color=discord.Color.blue())
+          new_info.add_field(name="Players:", value=send_out, inline=True)
+          new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
+          await in_embed.edit(embed=new_info)
 
-        # dump new info into lfg json
-        with open("lfg.json", "w") as file:
-          json.dump(all_lfg, file)
-      await msg.remove_reaction("🚫", payload.member)
+          #met goal
+          if (count == goal_actual):
+            print("Goal has been reached.")
+            await channel.send("We now have " + str(goal_actual) + " for " + str(game_actual) + "!")
+            for person in members:
+              await person.send(f"Your group for {game_actual} in {guild} is ready!")
+            print("oi")
+            all_lfg.pop(message_id)
+            print("Removed lfg from database.")
+          #not met goal
+          else:
+            print("Detected reaction from " + str(payload.member) + ". There are is now ", count, " out of ", goal_actual, " people ready to play " + game_actual + ".")
+          
+          # dump new info into lfg json
+          with open("lfg.json", "w") as file:
+            json.dump(all_lfg, file)
+        else:
+          print(payload.member.name + " already in queue.")
+        await msg.remove_reaction("✅", payload.member)
+
+        #remove from lfg
+      elif str(payload.emoji.name) == "🚫":
+        if member in members:
+          count -= 1
+          members.remove(member)
+          all_lfg[message_id]['members'].remove(str(member.id))
+          print(str(payload.member) + " has left the lfg")
+          des = str("People playing: " + str(count))
+          if members == []:
+            send_out = "N/A"
+          else:
+            for person in members:
+              send_out += (person.mention + "\n")
+          #embed
+          new_info = discord.Embed(title=("LFG for " + str(game_actual)), description=des, color=discord.Color.blue())
+          new_info.add_field(name="Players:", value=send_out, inline=True)
+          new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
+          await in_embed.edit(embed=new_info)
+
+          # dump new info into lfg json
+          with open("lfg.json", "w") as file:
+            json.dump(all_lfg, file)
+        await msg.remove_reaction("🚫", payload.member)
 
 
 async def check():
   denver = pytz.timezone('America/Denver')
   denver_time = datetime.now(denver)
   formattedDenver = denver_time.strptime(str(denver_time)[0:19], "%Y-%m-%d %H:%M:%S")
-  #goalTime = denver_time + timedelta(hours = 1)
-  #goalString = str(goalTime)
-  # write formatted goal to file
-  #formattedGoal = goalString[0:19]
-  #print(formattedGoal)
-  # this is for file extraction
-  n = open("file_names.txt", "r+")
-  # check all times in lfg files
-  for fileName in n:
-    if fileName != '': 
-      curr_file = open(fileName.rstrip('\n') + ".txt", "r+")
-      file_data = curr_file.readlines()
-      if file_data == []:
-        break
-      curr_time = file_data[7].rstrip('\n')
-      extractedNew = datetime.strptime(curr_time, "%Y-%m-%d %H:%M:%S")
-      if (formattedDenver >= extractedNew):  # goal time is passed
-        print("Deleting file " + fileName.rstrip('\n')  + " due to time passing")
-        #delete file
-        embed_id = int(file_data[2])
-        game_actual = file_data[3]
-        channel = client.get_channel(int(file_data[1]))
-        in_embed = await channel.fetch_message(embed_id)
-        count = len(file_data) - 8
-        names = []
-        send_out = ""
-        for x in range(8, len(file_data)):
-          playerid = file_data[x]
-          playerid.rstrip('\n')
-          member_obj = await client.fetch_user(playerid)
-          names.append(member_obj)
-        if names == []:
-          send_out = "N/A"
-        else:
-          for member in names:
-            send_out += (member.mention + "\n")
-        #update embed
-        des = str("People playing: " + str(count))
-        new_info = discord.Embed(title=("LFG for " + str(game_actual)),
-        description=des,
-        color=discord.Color.red())
-        new_info.add_field(name="Players:", value=send_out, inline=True)
-        new_info.add_field(name="Goal Time:",
-        value="Times up!",
-        inline=False)
-        await in_embed.edit(embed=new_info)
-        os.remove(fileName.rstrip('\n') + ".txt")
-        #store file names first
-        f = open("file_names.txt", "r+")
-        fileNameList = []
-        for nameFile in f:
-          if(nameFile != fileName and nameFile != '\n'): fileNameList.append(nameFile.rstrip('\n'))
-        #clear file name file
-        f.close()
-        f = open("file_names.txt","w")
-        f.close()
-        #re-write all data in new file list excluding one being deleted
-        f = open("file_names.txt", "a")
-        for name in fileNameList:
-          f.write(str(name) + "\n")
-        f.close()
-  n.close()
-  #extractedNew = datetime.strptime(curr_time, "%Y-%m-%d %H:%M:%S")
-  #print(extractedNew)
+  with open("lfg.json", "r") as file:
+    all_lfg = json.load(file)
+  # check all times in lfg json
+  for fileName in all_lfg:
+    curr_time = all_lfg[fileName]['goal_time']
+    extractedNew = datetime.strptime(curr_time, "%Y-%m-%d %H:%M:%S")
+    if (formattedDenver >= extractedNew):  # goal time is passed
+      print("Deleting file " + fileName.rstrip('\n')  + " due to time passing")
+      embed_id = all_lfg[fileName]['embed_id']
+      game_actual = all_lfg[fileName]['lfg_name']
+      channel = client.get_channel(int(all_lfg[fileName]['channel_id']))
+      in_embed = await channel.fetch_message(int(all_lfg[fileName]['embed_id']))
+      members = all_lfg[fileName]['members']
+      count = len(members)
+      names = []
+      send_out = ""
+      for player_id in members:
+        member_obj = await client.fetch_user(int(player_id))
+        names.append(member_obj)
+      if names == []:
+        send_out = "N/A"
+      else:
+        for member in names:
+          send_out += (member.mention + "\n")
+      #update embed
+      des = str("People playing: " + str(count))
+      new_info = discord.Embed(title=("LFG for " + str(game_actual)),
+      description=des,
+      color=discord.Color.red())
+      new_info.add_field(name="Players:", value=send_out, inline=True)
+      new_info.add_field(name="Goal Time:",
+      value="Times up!",
+      inline=False)
+      await in_embed.edit(embed=new_info)
+      all_lfg.pop(fileName)
+  with open("lfg.json", "w") as file:
+    json.dump(all_lfg, file)
   await asyncio.sleep(60)
   await check()
 
