@@ -45,7 +45,6 @@ async def on_member_join(member):
   #role = discord.utils.get(member.guild.roles, id=771767637432336434)
   #await client.add_roles(member, role)
 
-
 @client.command()
 async def join(ctx):
   user = ctx.message.author
@@ -79,8 +78,6 @@ async def play(ctx, url : str):
   except PermissionError:
     await ctx.send("Wait for the current playing music to end or use the 'stop' command")
     return
-
-  voiceChannel = discord.utils.get(ctx.guild.voice_channels, name='General')
 
   #join command with no sends
   voice = discord.utils.get(client.voice_clients, guild=ctx.guild)
@@ -119,7 +116,6 @@ async def resume(ctx):
   else:
     await ctx.send("**Audio is already playing.**")
 
-
 @client.command()
 async def welcomehere(ctx):
   if str(ctx.author) == "Sanic#8139":
@@ -134,7 +130,6 @@ async def welcomehere(ctx):
     print()
   else:
     await ctx.author.send("Only Kyle can do that!")
-
 
 @client.command()
 async def weather(ctx, city):
@@ -201,14 +196,6 @@ async def hello(ctx):
   await ctx.send('oi punk :snake:')
 
 @client.command()
-async def speech(ctx, message: str):
-  url = "https://voicerss-text-to-speech.p.rapidapi.com/"
-  querystring = {"key":"97a091fdc2ba41efaee26ed3e7ef22e6","hl":"en-us","v":"John","src":message,"f":"8khz_8bit_mono","c":"mp3","r":"0"}
-  headers = {'x-rapidapi-host': 'voicerss-text-to-speech.p.rapidapi.com'}
-  response = requests.request("GET", url, headers=headers, params=querystring)
-  print(response.content)
-
-@client.command()
 async def flip(ctx):
   side = random.randint(1, 2)
   if (side == 1):
@@ -216,78 +203,76 @@ async def flip(ctx):
   else:
     await ctx.send("**Tails**")
 
-
-#Counter
-
-
 @client.command()
 async def lfg(ctx, goal, game, numHours):
-    numHours = float(numHours)
-    if numHours <= 200.00 and numHours > 0.00:
-      goal_actual = int(goal)
-      game_actual = game
-      denver = pytz.timezone('America/Denver')
-      denver_time = datetime.now(denver)
-      goalTime = denver_time + timedelta(hours=float(numHours))
-      goalString = str(goalTime)
-      # write formatted goal to file
-      formattedGoal = goalString[0:19]
-      #embed
-      embed = discord.Embed(title=("LFG for " + game_actual), description="People playing: 0", color=discord.Color.blue())
-      embed.add_field(name="Players:", value="N/A", inline=True)
-      embed.add_field(name="Goal Time:", value=str(formattedGoal), inline=False)
-      message = await ctx.send("**React to this message if you want to play " + game + ". We need " + goal + " people. React with ✅ to join and 🚫 to leave.**")
-      in_embed = await ctx.send(embed=embed)
-      messageid = message.id
-      channel_id = message.channel.id
-      await message.add_reaction("✅")
-      await message.add_reaction("🚫")
-      #store lfg message information in text file
-      nums = [0]
-      files = -1
-      #makes list of all file names
-      f = open("file_names.txt", "r+")
-      for line in f:
-        fileNames = line.rstrip('\n')
-        nums.append(int(fileNames))
-      #assign new file a name
-      for x in range(0, 100):
-        checker = 0
-        for val in nums:
-          if (val == x):
-            checker += 1
-        if checker == 0:
-          files = x
-          f.write(str(files) + "\n")
-          break
-      for line in f:
-        fileNames = line.rstrip('\n')
-        nums.append(fileNames)
-      print("NAME OF NEW FILE: " + str(files))
-      f = open(str(files) + ".txt", "w")
-      embed_id = in_embed.id
-      guild = ctx.guild.id
-      guildname = ctx.guild
-      #message id line 1
-      f.write(str(messageid) + "\n")
-      #channel id line 2
-      f.write(str(channel_id) + "\n")
-      #embed_id line 3
-      f.write(str(embed_id) + "\n")
-      #game_actual line 4
-      f.write(str(game_actual) + "\n")
-      #goal_actual line 5
-      f.write(str(goal_actual) + "\n")
-      #guild id line 6
-      f.write(str(guild) + "\n")
-      #guild name line 7
-      f.write(str(guildname) + "\n")
-      #goal time line 8
-      f.write(str(formattedGoal) + "\n")
-      f.close()
-      print("Created counter for " + game_actual + " in " + message.guild.name)
-    else:
-        await ctx.author.send("You can only set an lfg timer for >0 to 200 hours.")
+  numHours = float(numHours)
+  if numHours <= 200.00 and numHours > 0.00:
+    goal_actual = int(goal)
+    game_actual = game
+    denver = pytz.timezone('America/Denver')
+    denver_time = datetime.now(denver)
+    goalTime = denver_time + timedelta(hours=float(numHours))
+    goalString = str(goalTime)
+    # write formatted goal to file
+    formattedGoal = goalString[0:19]
+    #embed
+    embed = discord.Embed(title=("LFG for " + game_actual), description="People playing: 0", color=discord.Color.blue())
+    embed.add_field(name="Players:", value="N/A", inline=True)
+    embed.add_field(name="Goal Time:", value=str(formattedGoal), inline=False)
+    message = await ctx.send("**React to this message if you want to play " + game + ". We need " + goal + " people. React with ✅ to join and 🚫 to leave.**")
+    in_embed = await ctx.send(embed=embed)
+    messageid = message.id
+    channel_id = message.channel.id
+    await message.add_reaction("✅")
+    await message.add_reaction("🚫")
+    #store lfg message information in text file
+    nums = [0]
+    files = -1
+    #makes list of all file names
+    f = open("file_names.txt", "r+")
+    for line in f:
+      fileNames = line.rstrip('\n')
+      nums.append(int(fileNames))
+    #assign new file a name
+    for x in range(0, 100):
+      checker = 0
+      for val in nums:
+        if (val == x):
+          checker += 1
+      if checker == 0:
+        files = x
+        f.write(str(files) + "\n")
+        break
+    for line in f:
+      fileNames = line.rstrip('\n')
+      nums.append(fileNames)
+    print("NAME OF NEW FILE: " + str(files))
+    f = open(str(files) + ".txt", "w")
+    embed_id = in_embed.id
+    guild = ctx.guild.id
+    guildname = ctx.guild
+    #message id line 1
+    f.write(str(messageid) + "\n")
+    #channel id line 2
+    f.write(str(channel_id) + "\n")
+    #embed_id line 3
+    f.write(str(embed_id) + "\n")
+    #game_actual line 4
+    f.write(str(game_actual) + "\n")
+    #goal_actual line 5
+    f.write(str(goal_actual) + "\n")
+    #guild id line 6
+    f.write(str(guild) + "\n")
+    #guild name line 7
+    f.write(str(guildname) + "\n")
+    #goal time line 8
+    f.write(str(formattedGoal) + "\n")
+    f.close()
+    print("Created counter for " + game_actual + " in " + message.guild.name)
+  else:
+      await ctx.author.send("You can only set an lfg timer for >0 to 200 hours.")
+  await ctx.message.delete()
+  
 
 
 #reaction checker
@@ -342,6 +327,7 @@ async def on_raw_reaction_add(payload):
           global send_out
           #print(file_data)
           break
+
       if (payload.message_id == messageid):
         if str(payload.emoji.name) == "✅":
           if payload.member not in names:
@@ -367,11 +353,14 @@ async def on_raw_reaction_add(payload):
             if (count == goal_actual):
               send_out = ""
               print("Goal has been reached.")
-              await channel.send("We now have " + str(goal_actual) +
-                                  " for " + str(game_actual) + "!")
+              await channel.send("We now have " + str(goal_actual) + " for " + str(game_actual) + "!")
+              """"
               for member in names:
-                  send_out += (member.mention + "\n")
+                send_out += (member.mention + "\n")
               await channel.send(send_out)
+              """
+              for member in names:
+                await member.send(f"Your group for {game_actual} in {guild.name} is ready!")
               names.clear()
               os.remove(fileNameTrue)
               print("File count subtracted")
@@ -401,35 +390,36 @@ async def on_raw_reaction_add(payload):
             p.close()
 
           #remove from lfg
-        elif str(payload.emoji.name) == "🚫" and payload.member in names:
-          send_out = ""
-          count -= 1
-          names.remove(payload.member)
-          print(str(payload.member) + " has left the lfg")
-          des = str("People playing: " + str(count))
-          if names == []:
-            send_out = "N/A"
-          else:
-            for member in names:
-              send_out += (member.mention + "\n")
-          #embed
-          new_info = discord.Embed(title=("LFG for " + str(game_actual)), description=des, color=discord.Color.blue())
-          new_info.add_field(name="Players:", value=send_out, inline=True)
-          new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
-          await in_embed.edit(embed=new_info)
-          #remove id from file
-          fileInfo = []
-          n = open(realFileName, "r+")
-          for line in n:
-            information = line.rstrip('\n')
-            if (str(information) != str(payload.member.id)):
-              fileInfo.append(str(information))
-          n.truncate(0)
-          n.close()
-          n = open(realFileName, "a")
-          for line in fileInfo:
-            n.write(str(line) + "\n")
-          n.close()
+        elif str(payload.emoji.name) == "🚫":
+          if payload.member in names:
+            send_out = ""
+            count -= 1
+            names.remove(payload.member)
+            print(str(payload.member) + " has left the lfg")
+            des = str("People playing: " + str(count))
+            if names == []:
+              send_out = "N/A"
+            else:
+              for member in names:
+                send_out += (member.mention + "\n")
+            #embed
+            new_info = discord.Embed(title=("LFG for " + str(game_actual)), description=des, color=discord.Color.blue())
+            new_info.add_field(name="Players:", value=send_out, inline=True)
+            new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
+            await in_embed.edit(embed=new_info)
+            #remove id from file
+            fileInfo = []
+            n = open(realFileName, "r+")
+            for line in n:
+              information = line.rstrip('\n')
+              if (str(information) != str(payload.member.id)):
+                fileInfo.append(str(information))
+            n.truncate(0)
+            n.close()
+            n = open(realFileName, "a")
+            for line in fileInfo:
+              n.write(str(line) + "\n")
+            n.close()
           await msg.remove_reaction("🚫", payload.member)
 
 
@@ -454,7 +444,7 @@ async def check():
       curr_time = file_data[7].rstrip('\n')
       extractedNew = datetime.strptime(curr_time, "%Y-%m-%d %H:%M:%S")
       if (formattedDenver >= extractedNew):  # goal time is passed
-        print(f"Deleting file {fileName} due to time passing")
+        print("Deleting file " + fileName.rstrip('\n')  + " due to time passing")
         #delete file
         embed_id = int(file_data[2])
         game_actual = file_data[3]
