@@ -197,11 +197,14 @@ async def hello(ctx):
 
 @client.command()
 async def flip(ctx):
+  print("Coing flipping...")
   side = random.randint(1, 2)
   if (side == 1):
     await ctx.send("**Heads**")
+    print("Heads!")
   else:
     await ctx.send("**Tails**")
+    print("Tails!")
 
 @client.command()
 async def lfg(ctx, goal, game, numHours):
@@ -217,8 +220,8 @@ async def lfg(ctx, goal, game, numHours):
     formattedGoal = goalString[0:19]
     #embed
     embed = discord.Embed(title=("LFG for " + game_actual), description="People playing: 0", color=discord.Color.blue())
-    embed.add_field(name="Players:", value="N/A", inline=True)
-    embed.add_field(name="Goal Time:", value=str(formattedGoal), inline=False)
+    embed.add_field(name="Players:", value=ctx.message.author.mention, inline=True)
+    embed.add_field(name="Goal Time:", value=formattedGoal, inline=False)
     message = await ctx.send("**React to this message if you want to play " + game + ". We need " + goal + " people. React with ✅ to join and 🚫 to leave.**")
     in_embed = await ctx.send(embed=embed)
     messageid = message.id
@@ -249,8 +252,31 @@ async def lfg(ctx, goal, game, numHours):
     print("NAME OF NEW FILE: " + str(files))
     f = open(str(files) + ".txt", "w")
     embed_id = in_embed.id
-    guild = ctx.guild.id
-    guildname = ctx.guild
+    guild_id = ctx.guild.id
+    guild_name = ctx.guild
+    lfg_dict = {
+      "message_id":str(messageid),
+      "channel_id":str(channel_id),
+      "embed_id":str(embed_id),
+      "lfg_name":str(game),
+      "guild_id":str(guild_id),
+      "guild_name":str(guild_name),
+      "goal_time":str(formattedGoal),
+      "members":[str(ctx.message.author.id)]
+    }
+    # extract lfg json
+    with open("lfg.json", "r") as file:
+      try:
+        data = json.load(file)
+      except:
+        data = dict()
+    # update lfg json
+    
+    data[str(messageid)] = lfg_dict
+
+    # write to json file
+    with open("lfg.json", "w") as file:
+      json.dump(data, file)
     #message id line 1
     f.write(str(messageid) + "\n")
     #channel id line 2
@@ -262,9 +288,9 @@ async def lfg(ctx, goal, game, numHours):
     #goal_actual line 5
     f.write(str(goal_actual) + "\n")
     #guild id line 6
-    f.write(str(guild) + "\n")
+    f.write(str(guild_id) + "\n")
     #guild name line 7
-    f.write(str(guildname) + "\n")
+    f.write(str(guild_name) + "\n")
     #goal time line 8
     f.write(str(formattedGoal) + "\n")
     f.close()
