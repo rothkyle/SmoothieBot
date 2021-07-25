@@ -207,11 +207,8 @@ async def flip(ctx):
     print("Tails!")
 
 @client.command()
-async def lfg(ctx, goal, game, numHours):
-  numHours = float(numHours)
-  if numHours <= 200.00 and numHours > 0.00:
-    goal_actual = int(goal)
-    game_actual = game
+async def lfg(ctx, goal : str, game : str, numHours : float):
+  if numHours <= 200.00 and numHours > 0.00 and int(goal) > 1:
     denver = pytz.timezone('America/Denver')
     denver_time = datetime.now(denver)
     goalTime = denver_time + timedelta(hours=float(numHours))
@@ -219,41 +216,19 @@ async def lfg(ctx, goal, game, numHours):
     # write formatted goal to file
     formattedGoal = goalString[0:19]
     #embed
-    embed = discord.Embed(title=("LFG for " + game_actual), description="People playing: 0", color=discord.Color.blue())
+    embed = discord.Embed(title=("LFG for " + game), description="People playing: 1", color=discord.Color.blue())
     embed.add_field(name="Players:", value=ctx.message.author.mention, inline=True)
     embed.add_field(name="Goal Time:", value=formattedGoal, inline=False)
     message = await ctx.send("**React to this message if you want to play " + game + ". We need " + goal + " people. React with ✅ to join and 🚫 to leave.**")
     in_embed = await ctx.send(embed=embed)
     messageid = message.id
     channel_id = message.channel.id
-    await message.add_reaction("✅")
-    await message.add_reaction("🚫")
-    #store lfg message information in text file
-    nums = [0]
-    files = -1
-    #makes list of all file names
-    f = open("file_names.txt", "r+")
-    for line in f:
-      fileNames = line.rstrip('\n')
-      nums.append(int(fileNames))
-    #assign new file a name
-    for x in range(0, 100):
-      checker = 0
-      for val in nums:
-        if (val == x):
-          checker += 1
-      if checker == 0:
-        files = x
-        f.write(str(files) + "\n")
-        break
-    for line in f:
-      fileNames = line.rstrip('\n')
-      nums.append(fileNames)
-    print("NAME OF NEW FILE: " + str(files))
-    f = open(str(files) + ".txt", "w")
     embed_id = in_embed.id
     guild_id = ctx.guild.id
     guild_name = ctx.guild
+    await message.add_reaction("✅")
+    await message.add_reaction("🚫")
+    #store lfg message information in dict then json
     lfg_dict = {
       'message_id':str(messageid),
       'channel_id':str(channel_id),
@@ -278,26 +253,9 @@ async def lfg(ctx, goal, game, numHours):
     # write to json file
     with open("lfg.json", "w") as file:
       json.dump(all_lfg, file)
-    #message id line 1
-    f.write(str(messageid) + "\n")
-    #channel id line 2
-    f.write(str(channel_id) + "\n")
-    #embed_id line 3
-    f.write(str(embed_id) + "\n")
-    #game_actual line 4
-    f.write(str(game_actual) + "\n")
-    #goal_actual line 5
-    f.write(str(goal_actual) + "\n")
-    #guild id line 6
-    f.write(str(guild_id) + "\n")
-    #guild name line 7
-    f.write(str(guild_name) + "\n")
-    #goal time line 8
-    f.write(str(formattedGoal) + "\n")
-    f.close()
-    print("Created counter for " + game_actual + " in " + message.guild.name)
+    print("Created counter for " + game + " in " + message.guild.name)
   else:
-      await ctx.author.send("You can only set an lfg timer for >0 to 200 hours.")
+      await ctx.author.send("You can only set an lfg timer for >0 to 200 hours and have a goal of 2 or greater.")
   await ctx.message.delete()
   
 
@@ -394,18 +352,22 @@ async def check():
   denver_time = datetime.now(denver)
   formattedDenver = denver_time.strptime(str(denver_time)[0:19], "%Y-%m-%d %H:%M:%S")
   with open("lfg.json", "r") as file:
-    all_lfg = json.load(file)
+    try:
+      all_lfg = json.load(file)
+    except:
+      await asyncio.sleep(60)
+      await check()
   # check all times in lfg json
-  for fileName in all_lfg:
-    curr_time = all_lfg[fileName]['goal_time']
+  to_delete = []
+  for file in all_lfg:
+    curr_time = all_lfg[file]['goal_time']
     extractedNew = datetime.strptime(curr_time, "%Y-%m-%d %H:%M:%S")
     if (formattedDenver >= extractedNew):  # goal time is passed
-      print("Deleting file " + fileName.rstrip('\n')  + " due to time passing")
-      embed_id = all_lfg[fileName]['embed_id']
-      game_actual = all_lfg[fileName]['lfg_name']
-      channel = client.get_channel(int(all_lfg[fileName]['channel_id']))
-      in_embed = await channel.fetch_message(int(all_lfg[fileName]['embed_id']))
-      members = all_lfg[fileName]['members']
+      print("Deleting file " + file.rstrip('\n')  + " due to time passing")
+      game_actual = all_lfg[file]['lfg_name']
+      channel = client.get_channel(int(all_lfg[file]['channel_id']))
+      in_embed = await channel.fetch_message(int(all_lfg[file]['embed_id']))
+      members = all_lfg[file]['members']
       count = len(members)
       names = []
       send_out = ""
@@ -419,15 +381,13 @@ async def check():
           send_out += (member.mention + "\n")
       #update embed
       des = str("People playing: " + str(count))
-      new_info = discord.Embed(title=("LFG for " + str(game_actual)),
-      description=des,
-      color=discord.Color.red())
+      new_info = discord.Embed(title=("LFG for " + str(game_actual)), description=des, color=discord.Color.red())
       new_info.add_field(name="Players:", value=send_out, inline=True)
-      new_info.add_field(name="Goal Time:",
-      value="Times up!",
-      inline=False)
+      new_info.add_field(name="Goal Time:", value="Times up!", inline=False)
       await in_embed.edit(embed=new_info)
-      all_lfg.pop(fileName)
+      to_delete.append(file)
+  for file in to_delete:
+    all_lfg.pop(file)
   with open("lfg.json", "w") as file:
     json.dump(all_lfg, file)
   await asyncio.sleep(60)
