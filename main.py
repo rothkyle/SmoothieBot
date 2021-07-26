@@ -256,7 +256,10 @@ async def lfg(ctx, goal : str, game : str, numHours : float=12, scheduled: bool=
       json.dump(all_lfg, file)
     print("Created counter for " + game + " in " + message.guild.name)
   else:
-      await ctx.author.send("You can only set an lfg timer for >0 to 200 hours and have a goal of 2 or greater.")
+    if int(goal) < 2:
+      await ctx.author.send("You can only create an lfg with a goal of 2 or greater.")
+    else:
+      await ctx.author.send("You can only set an lfg timer for >0 to 200 hours")
   try:
     await ctx.message.delete()
   except:
@@ -350,8 +353,12 @@ async def on_raw_reaction_add(payload):
 
 @client.command(brief="Retrieves runes for a LoL champ")
 async def runes(ctx, champion : str, role : str):
+  if role == "mid": role = "middle"
+  elif role == "jg": role = "jungle"
+  elif role == "sup": role = "support"
+  elif role == "ad": role = "adc"
   print(f"Searching u.gg for {champion} in {role}...")
-  await ctx.send("https://u.gg/lol/champions/" + champion + "/build?role=" + role)
+  await ctx.send("https://u.gg/lol/champions/" + champion + "/build?role=" + role + "&rank=overall")
 
 
 async def check():
@@ -386,9 +393,9 @@ async def check():
       for player_id in members:
         member_obj = await client.fetch_user(int(player_id))
         if scheduled and count == goal:
-          await member_obj.send(f"Your scheduled event for {lfg_name} in {guild} is ready to start!")
+          await member_obj.send(f"**Your scheduled event for {lfg_name} in {guild} is ready to start!**")
         elif scheduled and count != goal:
-          await member_obj.send(f"Your scheduled event for {lfg_name} in {guild} has failed to meet its goal, but you only need {goal - count} more!")
+          await member_obj.send(f"**Your scheduled event for {lfg_name} in the '{guild}' server has failed to meet its goal, but you only need {goal - count} more!**")
         names.append(member_obj)
       if names == []:
         send_out = "N/A"
