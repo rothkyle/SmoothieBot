@@ -11,10 +11,11 @@ from datetime import timedelta
 import asyncio
 import youtube_dl
 
-client = commands.Bot(command_prefix="%")
 streams = os.getenv('streams')
-intents = intents = discord.Intents.all()
+intents = discord.Intents()
+intents.members = True
 random.seed()
+client = commands.Bot(command_prefix="%", intents = intents)
 
 
 @client.event
@@ -22,6 +23,22 @@ async def on_ready():
   print("Bot is up and running")
   await check()
 
+@client.command()
+async def welcomehere(ctx):
+  print(ctx.author)
+  if str(ctx.author) == "Sanic#8139":
+    #open messages text file to set line 0 to new channel id
+    print("Changed welcome channel to " + ctx.channel)
+    file = open("welcome_messages.txt", "r+")
+    list_of_lines = file.readlines()
+    list_of_lines[0] = str(ctx.channel.id) + '\n'
+    file.close()
+    file = open("welcome_messages.txt", "w")
+    file.writelines(list_of_lines)
+    file.close()
+    print()
+  else:
+    await ctx.author.send("Only Kyle can do that!")
 
 @client.event
 async def on_member_join(member):
@@ -116,20 +133,6 @@ async def resume(ctx):
   else:
     await ctx.send("**Audio is already playing.**")
 
-@client.command()
-async def welcomehere(ctx):
-  if str(ctx.author) == "Sanic#8139":
-    #open messages text file to set line 0 to new channel id
-    print("Changed welcome channel to " + ctx.channel)
-    file = open("welcome_messages.txt", "r+")
-    list_of_lines = file.readlines()
-    list_of_lines[0] = str(ctx.channel.id) + '\n'
-    file = open("welcome_messages.txt", "w")
-    file.writelines(list_of_lines)
-    file.close()
-    print()
-  else:
-    await ctx.author.send("Only Kyle can do that!")
 
 @client.command(brief="Retrieve weather for an inputted city")
 async def weather(ctx, city):
@@ -197,7 +200,7 @@ async def hello(ctx):
 
 @client.command(brief="Flip a coin")
 async def flip(ctx):
-  print("Coing flipping...")
+  print("Coin flipping...")
   side = random.randint(1, 2)
   if (side == 1):
     await ctx.send("**Heads**")
