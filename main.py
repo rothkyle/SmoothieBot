@@ -45,7 +45,7 @@ async def on_member_join(member):
   #role = discord.utils.get(member.guild.roles, id=771767637432336434)
   #await client.add_roles(member, role)
 
-@client.command()
+@client.command(brief="Makes bot join voice")
 async def join(ctx):
   user = ctx.message.author
   voice_channel = user.voice.channel
@@ -61,7 +61,7 @@ async def join(ctx):
       await ctx.send("**Already in current channel.**")
 
 
-@client.command()
+@client.command(brief="Makes bot leave voice")
 async def leave(ctx):
   voice = discord.utils.get(client.voice_clients, guild=ctx.guild)
   if voice != None:
@@ -69,7 +69,7 @@ async def leave(ctx):
   else:
     await ctx.send("**I am not in a channel.**")
 
-@client.command()
+@client.command(brief="Play audio from inputted link to youtube video")
 async def play(ctx, url : str):
   song_there = os.path.isfile("song.webm")
   try:
@@ -100,7 +100,7 @@ async def play(ctx, url : str):
       os.rename(file, "song.webm")
   voice.play(discord.FFmpegOpusAudio("song.webm"))
 
-@client.command()
+@client.command(brief="Pause audio")
 async def pause(ctx):
   voice = discord.utils.get(client.voice_clients, guild = ctx.guild)
   if voice.is_playing:
@@ -108,7 +108,7 @@ async def pause(ctx):
   else:
     await ctx.send("**No audio playing.**")
 
-@client.command()
+@client.command(brief="Resume audio")
 async def resume(ctx):
   voice = discord.utils.get(client.voice_clients, guild = ctx.guild)
   if voice.is_paused:
@@ -131,7 +131,7 @@ async def welcomehere(ctx):
   else:
     await ctx.author.send("Only Kyle can do that!")
 
-@client.command()
+@client.command(brief="Retrieve weather for an inputted city")
 async def weather(ctx, city):
     #request
     print("Retrieving...")
@@ -179,7 +179,7 @@ async def weather(ctx, city):
       await ctx.send("Couldn't find " + city + ".")
 
 
-@client.command()
+@client.command(brief="What will the 8 ball say?")
 async def ball(ctx):
   #request
   print("Retrieving...")
@@ -195,7 +195,7 @@ async def ball(ctx):
 async def hello(ctx):
   await ctx.send('oi punk :snake:')
 
-@client.command()
+@client.command(brief="Flip a coin")
 async def flip(ctx):
   print("Coing flipping...")
   side = random.randint(1, 2)
@@ -206,7 +206,7 @@ async def flip(ctx):
     await ctx.send("**Tails**")
     print("Tails!")
 
-@client.command()
+@client.command(brief="Create a customizable 'looking for group' message", description="Create a customizable 'looking for group' message. First type '%lfg' followed by the number of people needed, the event name of the lfg, the number of hours you want the lfg to last, and true/false if the lfg is scheduled or not. Scheduled means that at the end of the inputted time, the message will send. If it isn't scheduled, the notification message will send immediately when the goal is met. The number of hours and scheduled are set to 12 and false respectively by default, so these are not necessary to create an lfg message.")
 async def lfg(ctx, goal : str, game : str, numHours : float=12, scheduled: bool=False):
   if numHours <= 200.00 and numHours > 0.00 and int(goal) > 1:
     denver = pytz.timezone('America/Denver')
@@ -275,8 +275,7 @@ async def on_raw_reaction_add(payload):
       embed_id = int(all_lfg[message_id]['embed_id'])
       lfg_name = all_lfg[message_id]['lfg_name']
       goal = int(all_lfg[message_id]['goal'])
-      guild_id = int(all_lfg[message_id]['guild_id'])
-      guild = all_lfg[message_id]['guild_name']
+      guild_name = all_lfg[message_id]['guild_name']
       goal_time = str(all_lfg[message_id]['goal_time'])
       members_list = all_lfg[message_id]['members']
       scheduled = bool(all_lfg[message_id]['scheduled'])
@@ -291,7 +290,6 @@ async def on_raw_reaction_add(payload):
       channel = client.get_channel(payload.channel_id)
       msg = await channel.fetch_message(int(message_id))
       in_embed = await channel.fetch_message(embed_id)
-      guild = client.get_guild(guild_id)
       send_out = ""
       
       if str(payload.emoji.name) == "✅" and count < goal:
@@ -309,10 +307,10 @@ async def on_raw_reaction_add(payload):
 
           #met goal
           if (count == goal):
-            print(f"Goal has been reached for {goal} in {guild}.")
+            print(f"Goal has been reached for {goal} in {guild_name}.")
             if not scheduled:          
               for person in members:
-                await person.send(f"Your group for {lfg_name} in {guild} is ready!")
+                await person.send(f"Your group for {lfg_name} in {guild_name} is ready!")
               all_lfg.pop(message_id)
               print("Removed lfg from database.")
           #not met goal
@@ -350,6 +348,11 @@ async def on_raw_reaction_add(payload):
             json.dump(all_lfg, file)
         await msg.remove_reaction("🚫", payload.member)
 
+@client.command(brief="Retrieves runes for a LoL champ")
+async def runes(ctx, champion : str, role : str):
+  print(f"Searching u.gg for {champion} in {role}...")
+  await ctx.send("https://u.gg/lol/champions/" + champion + "/build?role=" + role)
+
 
 async def check():
   denver = pytz.timezone('America/Denver')
@@ -384,6 +387,8 @@ async def check():
         member_obj = await client.fetch_user(int(player_id))
         if scheduled and count == goal:
           await member_obj.send(f"Your scheduled event for {lfg_name} in {guild} is ready to start!")
+        elif scheduled and count != goal:
+          await member_obj.send(f"Your scheduled event for {lfg_name} in {guild} has failed to meet its goal, but you only need {goal - count} more!")
         names.append(member_obj)
       if names == []:
         send_out = "N/A"
