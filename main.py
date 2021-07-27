@@ -22,7 +22,8 @@ client = commands.Bot(command_prefix="%", intents = intents)
 @client.event
 async def on_ready():
   print("Bot is up and running")
-  await check()
+  asyncio.create_task(check())
+  #asyncio.create_task(currency_update())
 
 
 @client.command(brief="Set the text channel where welcome messages are sent")
@@ -104,6 +105,7 @@ async def delwelcome(ctx, number : int):
     with open("welcome.json", "w") as file:
       json.dump(welcome, file)
   else:
+    # user doesn't have enough permissions
     try:
       await ctx.message.delete()
     except:
@@ -517,7 +519,12 @@ async def check():
   await asyncio.sleep(60)
   await check()
 
-
+async def currency_update():
+  #for guild in client.guilds:
+  #  for member in guild.members:
+  #    print(member)
+  await asyncio.sleep(3600)
+  await currency_update()
 #@client.command()
 #async def zoop(ctx):
 # playerid = "279056911926689793"
