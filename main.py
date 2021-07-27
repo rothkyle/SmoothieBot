@@ -26,6 +26,11 @@ async def on_ready():
   #asyncio.create_task(currency_update())
 
 
+@client.command()
+async def poker(ctx):
+  
+
+
 @client.command(brief="Set the text channel where welcome messages are sent")
 async def welcomehere(ctx):
   if ctx.message.author.guild_permissions.administrator:
@@ -36,7 +41,7 @@ async def welcomehere(ctx):
         welcome = json.load(file)
       except:
         welcome = dict()
-
+    #set channel id of server
     welcome[str(ctx.guild.id)] = [str(ctx.channel.id)]
     
     with open("welcome.json", "w") as file:
@@ -466,19 +471,54 @@ async def runes(ctx, champion : str, role : str):
 async def check():
   denver = pytz.timezone('America/Denver')
   denver_time = datetime.now(denver)
-  formattedDenver = denver_time.strptime(str(denver_time)[0:19], "%Y-%m-%d %H:%M:%S")
+  formatted_denver = denver_time.strptime(str(denver_time)[0:19], "%Y-%m-%d %H:%M:%S")
   with open("lfg.json", "r") as file:
     try:
       all_lfg = json.load(file)
     except:
       await asyncio.sleep(60)
       await check()
-  # check all times in lfg json
   to_delete = []
+  #update balances for every player
+  new_day = all_lfg["time"]
+  extracted_new_day = datetime.strptime(new_day, "%Y-%m-%d %H:%M:%S")
+  if (formatted_denver >= extracted_new_day):
+    with open("bank.json", "r") as file:
+      try:
+        bank = json.load(file)
+      except:
+        print("No players stored in bank")
+        bank = dict()
+    
+    new_players = []
+    # adds members who are not in bank to bank
+    for guild in client.guilds:
+      for member in guild.members:
+        if member not in bank:
+          bank[str(member.id)] = ["100"]
+          new_players.append(member.id)
+        elif member not in new_players:
+          #add money to existing players
+          money = int(bank[str(member.id)][0])
+          money += 50
+          bank[str(member.id)][0] = str(money)
+    
+    all_lfg["time"] = str(extracted_new_day + timedelta(hours=24))
+
+    with open("all_lfg.json", "w") as file:
+      json.dump(all_lfg, file)
+
+    with open("bank.json", "w") as file:
+      json.dump(bank, file)
+
+
+  # check all times in lfg json
   for file in all_lfg:
+    if file == "time":
+      continue
     curr_time = all_lfg[file]['goal_time']
-    extractedNew = datetime.strptime(curr_time, "%Y-%m-%d %H:%M:%S")
-    if (formattedDenver >= extractedNew):  # goal time is passed
+    extracted_new = datetime.strptime(curr_time, "%Y-%m-%d %H:%M:%S")
+    if (formatted_denver >= extracted_new):  # goal time is passed
       print("Deleting file " + file.rstrip('\n')  + " due to time passing")
       # retrieve lfg information
       lfg_name = all_lfg[file]['lfg_name']
@@ -518,13 +558,14 @@ async def check():
     json.dump(all_lfg, file)
   await asyncio.sleep(60)
   await check()
-
+"""
 async def currency_update():
   #for guild in client.guilds:
   #  for member in guild.members:
   #    print(member)
   await asyncio.sleep(3600)
   await currency_update()
+"""
 #@client.command()
 #async def zoop(ctx):
 # playerid = "279056911926689793"
