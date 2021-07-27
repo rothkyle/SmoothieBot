@@ -25,11 +25,10 @@ async def on_ready():
   await check()
 
 
-@client.command()
+@client.command(brief="Set the text channel where welcome messages are sent")
 async def welcomehere(ctx):
   if ctx.message.author.guild_permissions.administrator:
     #open messages text file to set line 0 to new channel id
-    print("Changed welcome channel to " + ctx.channel.name)
     #insert channel id into json
     with open("welcome.json", "r") as file:
       try:
@@ -49,7 +48,7 @@ async def welcomehere(ctx):
     await ctx.author.send("You don't have enough permissions to do that.")
 
 
-@client.command()
+@client.command(brief="Add a welcome message to the server")
 async def addwelcome(ctx, *, message):
   if ctx.message.author.guild_permissions.administrator:
     with open("welcome.json", "r") as file:
@@ -75,7 +74,7 @@ async def addwelcome(ctx, *, message):
     await ctx.author.send("You don't have enough permissions to do that.")
 
 
-@client.command()
+@client.command(brief="Delete welcome message from server (see %welcomemessages)")
 async def delwelcome(ctx, number : int):
   if ctx.message.author.guild_permissions.administrator:
     with open("welcome.json", "r") as file:
@@ -109,7 +108,7 @@ async def delwelcome(ctx, number : int):
     await ctx.author.send("You don't have enough permissions to do that.")
 
 
-@client.command()
+@client.command(brief="Send all welcome messages for this server to user")
 async def welcomemessages(ctx):
   if ctx.message.author.guild_permissions.administrator:
     with open("welcome.json", "r") as file:
@@ -124,11 +123,11 @@ async def welcomemessages(ctx):
     if guild_id not in welcome:
       await ctx.send("**There are no welcome messages for this server**")
     else:
-      outgoing = ""
+      outgoing = f"**Welcome messages for {ctx.guild.name}:**\n"
       for message in range(1, len(welcome[guild_id])):
-        outgoing += "[" + str(message) + "] " + welcome[guild_id][message] + '\n'
-      await ctx.send(outgoing)
-      await ctx.send("You can reference the numbers to the left of the message to remove them using %delwelcome 'number here'")
+        outgoing += "(" + str(message) + ") " + welcome[guild_id][message] + '\n'
+      outgoing += "\n*You can reference the numbers to the left of the message to remove them using %delwelcome 'number here'*"
+      await ctx.author.send(outgoing)
   else:
     try:
       await ctx.message.delete()
