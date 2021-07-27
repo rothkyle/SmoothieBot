@@ -48,7 +48,7 @@ async def welcomehere(ctx):
     await ctx.author.send("You don't have enough permissions to do that.")
 
 
-@client.command(brief="Add a welcome message to the server")
+@client.command(brief="Add a welcome message to the server", description = "Multiple word messages and links are supported.")
 async def addwelcome(ctx, *, message):
   if ctx.message.author.guild_permissions.administrator:
     with open("welcome.json", "r") as file:
@@ -77,6 +77,9 @@ async def addwelcome(ctx, *, message):
 @client.command(brief="Delete welcome message from server (see %welcomemessages)")
 async def delwelcome(ctx, number : int):
   if ctx.message.author.guild_permissions.administrator:
+    if number <= 0:
+      await ctx.send(f"**Message {number} does not exist**")
+      return
     with open("welcome.json", "r") as file:
         try:
           welcome = json.load(file)
@@ -123,7 +126,7 @@ async def welcomemessages(ctx):
     if guild_id not in welcome:
       await ctx.send("**There are no welcome messages for this server**")
     else:
-      outgoing = f"**Welcome messages for {ctx.guild.name}:**\n"
+      outgoing = f"**\nWelcome messages for {ctx.guild.name}:**\n"
       for message in range(1, len(welcome[guild_id])):
         outgoing += "(" + str(message) + ") " + welcome[guild_id][message] + '\n'
       outgoing += "\n*You can reference the numbers to the left of the message to remove them using %delwelcome 'number here'*"
@@ -179,6 +182,7 @@ async def leave(ctx):
   else:
     await ctx.send("**I am not in a channel.**")
 
+
 @client.command(brief="Play audio from inputted link to youtube video")
 async def play(ctx, url : str):
   song_there = os.path.isfile("song.webm")
@@ -210,6 +214,7 @@ async def play(ctx, url : str):
       os.rename(file, "song.webm")
   voice.play(discord.FFmpegOpusAudio("song.webm"))
 
+
 @client.command(brief="Pause audio")
 async def pause(ctx):
   voice = discord.utils.get(client.voice_clients, guild = ctx.guild)
@@ -217,6 +222,7 @@ async def pause(ctx):
     voice.pause()
   else:
     await ctx.send("**No audio playing.**")
+
 
 @client.command(brief="Resume audio")
 async def resume(ctx):
@@ -230,11 +236,9 @@ async def resume(ctx):
 @client.command(brief="Retrieve weather for an inputted city")
 async def weather(ctx, city):
     #request
-    print("Retrieving...")
     response = requests.get("http://api.openweathermap.org/data/2.5/weather?q=" + city + "&units=imperial&appid=4c0715acb4fc81b82bace4942a843378&lang=en")
     #status check and output
     if (response.status_code == 200):
-      print(response.content)
       #makes a key
       json_data = json.loads(response.text)
       #uses key to create easy weather data
@@ -247,7 +251,6 @@ async def weather(ctx, city):
       weather_clouds = str(json_data["clouds"]["all"])
       city = weather_city
       response.status_code = 0
-      print("Request successful for " + city + "!")
       #makes embed in discord server
       embed = discord.Embed(title="Weather",
       description="Weather in " + city + ", " +
@@ -267,20 +270,16 @@ async def weather(ctx, city):
       inline=True)
       await ctx.send(embed=embed)
       #await ctx.send("Feels like " + weather_feels_like + "ºF\nHumidity: " + weather_humidity + "%\nDescription: " + weather_clouds)
-      print(response.status_code)
     else:
       #if something goes wrong finding the city through the api
-      print(response.content)
-      print("Something went wrong retrieving data from weather api for " + city + ".")
+      print("Couldnt find " + city)
       await ctx.send("Couldn't find " + city + ".")
 
 
 @client.command(brief="What will the 8 ball say?")
 async def ball(ctx):
   #request
-  print("Retrieving...")
   response = requests.get("https://8ball.delegator.com/magic/JSON/randomstuff")
-  print(response.content)
   json_data = json.loads(response.text)
   #use key to answer
   answer = str(json_data["magic"]["answer"])
@@ -294,14 +293,11 @@ async def hello(ctx):
 
 @client.command(brief="Flip a coin")
 async def flip(ctx):
-  print("Coin flipping...")
   side = random.randint(1, 2)
   if (side == 1):
     await ctx.send("**Heads**")
-    print("Heads!")
   else:
     await ctx.send("**Tails**")
-    print("Tails!")
 
 
 @client.command(brief="Create a customizable 'looking for group' message", description="Create a customizable 'looking for group' message. First type '%lfg' followed by the number of people needed, the event name of the lfg, the number of hours you want the lfg to last, and true/false if the lfg is scheduled or not. Scheduled means that at the end of the inputted time, the message will send. If it isn't scheduled, the notification message will send immediately when the goal is met. The number of hours and scheduled are set to 12 and false respectively by default, so these are not necessary to create an lfg message.")
