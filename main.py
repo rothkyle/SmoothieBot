@@ -28,7 +28,52 @@ async def on_ready():
 
 @client.command()
 async def poker(ctx):
+  with open("poker.json", "r") as file:
+    try:
+      poker = json.load(file)
+    except:
+      poker = dict()
+
+  with open("bank.json", "r") as file:
+    try:
+      bank = json.load(file)
+    except:
+      print("There are no members in the bank")
+      await ctx.send("Fatal error")
   
+  owner = str(ctx.message.author.id)
+
+  # check if owner is already in a game
+  for game in poker:
+    for member in poker[game]['members']['id']:
+      if member == owner:
+        ctx.send("Can't participate in 2 poker games at once.")
+        return
+  
+  if owner in bank:
+    if int(bank[owner][0]) >= 100:
+      # each member who joins will have an id and status
+      player_info = {
+        'id': owner,
+        'status': 'Playing'
+      }
+      # information about the game
+      new_poker = {
+        'pot': '0',
+        'members': [player_info],
+        'deck': ['ha','h2','h3','h4','h5','h6','h7','h8','h9','h1','hj','hq','hk','sa','s2','s3','s4','s5','s6','s7','s8','s9','s1','sj','sq','sk','da','d2','d3','d4','d5','d6','d7','d8','d9','d1','dj','dq','dk','ca','c2','c3','c4','c5','c6','c7','c8','c9','c1','cj','cq','ck']
+        'start':'0' # index of who started off the round (for big/little blind)
+        'turn': '0' # index of whos turn it currently is
+      }
+      poker[str(ctx.message.author.id)] = new_poker
+      with open("poker.json", "w") as file:
+        json.dump(poker, file)
+    else:
+      await ctx.send("**You need 100 or more credits to create a poker game.**")
+  else:
+    await ctx.send("**You dont have money set up! Every hour money is updated and your bank account will be created.**")
+    
+
 
 
 @client.command(brief="Set the text channel where welcome messages are sent")
@@ -495,17 +540,17 @@ async def check():
     for guild in client.guilds:
       for member in guild.members:
         if member not in bank:
-          bank[str(member.id)] = ["100"]
+          bank[str(member.id)] = ["10000"]
           new_players.append(member.id)
         elif member not in new_players:
           #add money to existing players
           money = int(bank[str(member.id)][0])
-          money += 50
+          money += 100
           bank[str(member.id)][0] = str(money)
     
-    all_lfg["time"] = str(extracted_new_day + timedelta(hours=24))
+    all_lfg["time"] = str(extracted_new_day + timedelta(hours=1))
 
-    with open("all_lfg.json", "w") as file:
+    with open("lfg.json", "w") as file:
       json.dump(all_lfg, file)
 
     with open("bank.json", "w") as file:
