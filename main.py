@@ -10,11 +10,12 @@ import pytz
 from datetime import timedelta
 import asyncio
 import youtube_dl
+import validators
 
 streams = os.getenv('streams')
-intents = discord.Intents()
-intents.members = True
 random.seed()
+intents = discord.Intents.default()
+intents.members = True
 client = commands.Bot(command_prefix="%", intents = intents)
 
 
@@ -23,44 +24,137 @@ async def on_ready():
   print("Bot is up and running")
   await check()
 
+
 @client.command()
 async def welcomehere(ctx):
-  print(ctx.author)
-  if str(ctx.author) == "Sanic#8139":
+  if ctx.message.author.guild_permissions.administrator:
     #open messages text file to set line 0 to new channel id
-    print("Changed welcome channel to " + ctx.channel)
-    file = open("welcome_messages.txt", "r+")
-    list_of_lines = file.readlines()
-    list_of_lines[0] = str(ctx.channel.id) + '\n'
-    file.close()
-    file = open("welcome_messages.txt", "w")
-    file.writelines(list_of_lines)
-    file.close()
-    print()
+    print("Changed welcome channel to " + ctx.channel.name)
+    #insert channel id into json
+    with open("welcome.json", "r") as file:
+      try:
+        welcome = json.load(file)
+      except:
+        welcome = dict()
+
+    welcome[str(ctx.guild.id)] = [str(ctx.channel.id)]
+    
+    with open("welcome.json", "w") as file:
+      json.dump(welcome, file)
   else:
-    await ctx.author.send("Only Kyle can do that!")
+    try:
+      await ctx.message.delete()
+    except:
+      print("Not enough permissions to delete messages")
+    await ctx.author.send("You don't have enough permissions to do that.")
+
+
+@client.command()
+async def addwelcome(ctx, *, message):
+  if ctx.message.author.guild_permissions.administrator:
+    with open("welcome.json", "r") as file:
+        try:
+          welcome = json.load(file)
+        except:
+          welcome = dict()
+    
+    guild_id = str(ctx.guild.id)
+    if guild_id not in welcome:
+      await ctx.send("**You must first set the text channel for welcome messages with '%welcomehere'**")
+    else:
+      await ctx.send("**Welcome message added!**")
+      welcome[guild_id].append(message)
+
+    with open("welcome.json", "w") as file:
+      json.dump(welcome, file)
+  else:
+    try:
+      await ctx.message.delete()
+    except:
+      print("Not enough permissions to delete messages")
+    await ctx.author.send("You don't have enough permissions to do that.")
+
+
+@client.command()
+async def delwelcome(ctx, number : int):
+  if ctx.message.author.guild_permissions.administrator:
+    with open("welcome.json", "r") as file:
+        try:
+          welcome = json.load(file)
+        except:
+          welcome = dict()
+    
+    guild_id = str(ctx.guild.id)
+
+    # check if server has welcome messages set up
+    if guild_id not in welcome:
+      await ctx.send("**There are no welcome messages for this server**")
+    else:
+      try:
+        welcome[guild_id].pop(number)
+        # deletes server from json if there are no messages
+        if len(welcome[guild_id]) == 1:
+          welcome.pop(guild_id)
+      except:
+        await ctx.send(f"**Message {number} does not exist**")
+        return
+
+    with open("welcome.json", "w") as file:
+      json.dump(welcome, file)
+  else:
+    try:
+      await ctx.message.delete()
+    except:
+      print("Not enough permissions to delete messages")
+    await ctx.author.send("You don't have enough permissions to do that.")
+
+
+@client.command()
+async def welcomemessages(ctx):
+  if ctx.message.author.guild_permissions.administrator:
+    with open("welcome.json", "r") as file:
+        try:
+          welcome = json.load(file)
+        except:
+          welcome = dict()
+    
+    guild_id = str(ctx.guild.id)
+
+    # check if server has welcome messages set up
+    if guild_id not in welcome:
+      await ctx.send("**There are no welcome messages for this server**")
+    else:
+      outgoing = ""
+      for message in range(1, len(welcome[guild_id])):
+        outgoing += "[" + str(message) + "] " + welcome[guild_id][message] + '\n'
+      await ctx.send(outgoing)
+      await ctx.send("You can reference the numbers to the left of the message to remove them using %delwelcome 'number here'")
+  else:
+    try:
+      await ctx.message.delete()
+    except:
+      print("Not enough permissions to delete messages")
+    await ctx.author.send("You don't have enough permissions to do that.")
+
 
 @client.event
 async def on_member_join(member):
-  #read file for messages
-  file = open("welcome_messages.txt", "r+")
-  #readlines makes a list
-  messages = file.readlines()
-  #strip \n from all values in messages[]
-  messages.rstrip('\n')
-  #retrieve channel id
-  channel_id = messages[0]
-  print("here")
-  print(channel_id)
-  print(member)
-  #say hi to new member
-  await client.get_channel(channel_id).send(f"Oi {member.mention}")
-  #send random message
-  await client.get_channel(channel_id).send(messages[random.randrange(1, len(messages) - 1)])
-  print(f"{member.name} has joined the server")
-  #assign role to new member
-  #role = discord.utils.get(member.guild.roles, id=771767637432336434)
-  #await client.add_roles(member, role)
+  guild_id = member.guild.id
+  with open("welcome.json", "r") as file:
+    try:
+      welcome = json.load(file)
+    except:
+      print("No welcome messages.")
+  
+  if str(guild_id) in welcome:
+    # send message
+    messages = welcome[str(guild_id)]
+    channel = client.get_channel(int(welcome[str(guild_id)][0]))
+    try:
+      await channel.send(messages[random.randrange(1, len(messages))])
+    except:
+      print("No server messages")
+
 
 @client.command(brief="Makes bot join voice")
 async def join(ctx):
@@ -198,6 +292,7 @@ async def ball(ctx):
 async def hello(ctx):
   await ctx.send('oi punk :snake:')
 
+
 @client.command(brief="Flip a coin")
 async def flip(ctx):
   print("Coin flipping...")
@@ -208,6 +303,7 @@ async def flip(ctx):
   else:
     await ctx.send("**Tails**")
     print("Tails!")
+
 
 @client.command(brief="Create a customizable 'looking for group' message", description="Create a customizable 'looking for group' message. First type '%lfg' followed by the number of people needed, the event name of the lfg, the number of hours you want the lfg to last, and true/false if the lfg is scheduled or not. Scheduled means that at the end of the inputted time, the message will send. If it isn't scheduled, the notification message will send immediately when the goal is met. The number of hours and scheduled are set to 12 and false respectively by default, so these are not necessary to create an lfg message.")
 async def lfg(ctx, goal : str, game : str, numHours : float=12, scheduled: bool=False):
@@ -267,7 +363,7 @@ async def lfg(ctx, goal : str, game : str, numHours : float=12, scheduled: bool=
     await ctx.message.delete()
   except:
     print("Not enough permissions to delete lfg call.")
-  
+
 
 #reaction checker
 @client.event
@@ -354,6 +450,7 @@ async def on_raw_reaction_add(payload):
             json.dump(all_lfg, file)
         await msg.remove_reaction("🚫", payload.member)
 
+
 @client.command(brief="Retrieves runes for a LoL champ")
 async def runes(ctx, champion : str, role : str):
   if role == "mid": role = "middle"
@@ -361,7 +458,12 @@ async def runes(ctx, champion : str, role : str):
   elif role == "sup": role = "support"
   elif role == "ad": role = "adc"
   print(f"Searching u.gg for {champion} in {role}...")
-  await ctx.send("https://u.gg/lol/champions/" + champion + "/build?role=" + role + "&rank=overall")
+  URL = "https://u.gg/lol/champions/" + champion + "/build?role=" + role + "&rank=overall"
+  valid=validators.url(URL)
+  if valid:
+    await ctx.send("https://u.gg/lol/champions/" + champion + "/build?role=" + role + "&rank=overall")
+  else:
+    await ctx.send("**You did something wrong**")
 
 
 async def check():
