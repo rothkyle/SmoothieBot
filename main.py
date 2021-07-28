@@ -27,6 +27,40 @@ async def on_ready():
 
 
 @client.command()
+async def game(ctx, action : str, amount : int=0):
+  action = action.lower()
+  member = str(ctx.message.author.id)
+  game = ""
+  with open("games.json","r") as file:
+    try:
+      games = json.load(file)
+    except:
+      await member.send("**No games found**")
+      return
+  # check if member is in a game
+  for game in games:
+    if member in games[game]['members']:
+      game_id = game
+  if game == "":
+    await member.send("**You are not in a game**")
+    return
+  members_obj = []
+  for member_id in games[game]['members']:
+    player_obj = await client.fetch_user(int(member_id))
+    members_obj.append(player_obj)
+  game = games[game_id]['game']
+  # different actions
+  if action == 'start':
+    # next(iter(games[game_id]['members'])) gets first index of dictionary 'members'
+    if next(iter(games[game_id]['members'])) == member:
+      for player in members_obj:
+        # sending messages to all players
+        await player.send(f"**{ctx.message.author.name} has started the {game} game!**")
+    else: await member.send("*You are not the owner of the game*")
+  
+
+
+@client.command()
 async def test(ctx):
   embed = discord.Embed(title="Title", description="Desc", color=discord.Color.gold()) #creates embed
   file = discord.File("owen.png", filename="image.png")
@@ -60,33 +94,31 @@ async def poker(ctx):
   
   if owner in bank:
     if int(bank[owner][0]) >= 100:
-      message = await ctx.send("**POKER: React to this message if you would like to play!**")
-      await message.add_reaction("✅")
+      embed = discord.Embed(title=("POKER: REACT WITH ✅ TO PLAY"), description="People playing: 1", color=discord.Color.blue())
+      embed.add_field(name="Players:", value=ctx.message.author.mention, inline=False)
+      in_embed = await ctx.send(embed=embed)
+      await in_embed.add_reaction("✅")
       denver = pytz.timezone('America/Denver')
       denver_time = datetime.now(denver)
       goalTime = denver_time + timedelta(hours=2)
       goalString = str(goalTime)
       # write formatted goal to file
       formattedGoal = goalString[0:19]
-      # each member who joins will have an id and status
-      player_info = {
-        'id': owner,
-        'status': 'Playing'
-      }
       # information about the game
       new_poker = {
         'game': 'poker',
         'pot': '0',
-        'members': [player_info],
+        'members': {owner: {'status': 'Playing', 'hand': []}},
         'deck': ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33','34','35','36','37','38','39','40','41','42','43','44','45','46','47','48','49','50','51','52'],
         'start':'0', # index of who started off the round (for big/little blind)
         'turn': '0', # index of whos turn it currently is
-        'message_id': str(message.id),
         'end_time': formattedGoal # 2 hours after game is made
       }
-      poker[str(ctx.message.author.id)] = new_poker
-      with open("poker.json", "w") as file:
-        json.dump(poker, file)
+      # member info
+      games[str(in_embed.id)] = new_poker
+      # dump new poker info
+      with open("games.json", "w") as file:
+        json.dump(games, file)
     else:
       await ctx.send("**You need 100 or more credits to create a poker game.**")
   else:
@@ -131,7 +163,7 @@ async def welcomehere(ctx):
     await ctx.author.send("You don't have enough permissions to do that.")
 
 
-@client.command(brief="Add a welcome message to the server", description = "Multiple word messages and links are supported.")
+@client.command(brief="Add a welcome message to the server", description = "Multiple word messages and links are supported. Using '=' in the message will @ the person who joined.")
 async def addwelcome(ctx, *, message):
   if ctx.message.author.guild_permissions.administrator:
     with open("welcome.json", "r") as file:
@@ -237,7 +269,9 @@ async def on_member_join(member):
     messages = welcome[str(guild_id)]
     channel = client.get_channel(int(welcome[str(guild_id)][0]))
     try:
-      await channel.send(messages[random.randrange(1, len(messages))])
+      message = messages[random.randrange(1, len(messages))]
+      message = message.replace('=', member.mention)
+      await channel.send(message)
     except:
       print("No server messages")
 
@@ -448,11 +482,11 @@ async def lfg(ctx, goal : str, game : str, numHours : float=12, scheduled: bool=
 @client.event
 async def on_raw_reaction_add(payload):
   if payload.member.bot == False:
+    message_id = str(payload.message_id)
     with open("lfg.json", "r") as file:
       all_lfg = json.load(file)
-    if str(payload.message_id) in all_lfg:
+    if message_id in all_lfg:
       # retrieve lfg info
-      message_id = str(payload.message_id)
       embed_id = int(all_lfg[message_id]['embed_id'])
       lfg_name = all_lfg[message_id]['lfg_name']
       goal = int(all_lfg[message_id]['goal'])
@@ -469,7 +503,14 @@ async def on_raw_reaction_add(payload):
       member = payload.member
       # fetch lfg objects
       channel = client.get_channel(payload.channel_id)
-      msg = await channel.fetch_message(int(message_id))
+      try:
+        msg = await channel.fetch_message(int(message_id))
+      except:
+        print(f"Message for the {lfg_name} lfg in {guild_name} could not be found.")
+        all_lfg.pop(message_id)
+        with open("lfg.json", "w") as file:
+          json.dump(all_lfg, file)
+        return
       in_embed = await channel.fetch_message(embed_id)
       send_out = ""
       
@@ -528,6 +569,39 @@ async def on_raw_reaction_add(payload):
           with open("lfg.json", "w") as file:
             json.dump(all_lfg, file)
         await msg.remove_reaction("🚫", payload.member)
+      return
+    member = str(payload.member.id)
+    if str(payload.emoji.name) == "✅":
+      with open("games.json", "r") as file:
+        games = json.load(file)
+      for game in games:
+        if game == message_id and member not in games[message_id]['members'] and len(games[message_id]['members']) <= 12:
+          # match found
+          try:
+            in_embed = await client.get_channel(payload.channel_id).fetch_message(int(message_id))
+          except:
+            print(f"Message for a game could not be found.")
+            games.pop(message_id)
+            with open("games.json", "w") as file:
+              json.dump(games, file)
+            return
+          send_out = ""
+          # create send_out
+          games[message_id]['members'][member] = 'Playing'
+          for member in games[message_id]['members']:
+            member_obj = await client.fetch_user(int(member))
+            send_out += (member_obj.mention + '\n')
+          # embed
+          des = "People playing: " + str(len(games[message_id]['members']))
+          new_info = discord.Embed(title=("POKER: REACT WITH ✅ TO PLAY"), description=des, color=discord.Color.blue())
+          new_info.add_field(name="Players:", value=send_out, inline=False)
+          await in_embed.edit(embed=new_info)
+          # dump new info
+          with open("games.json", "w") as file:
+            json.dump(games, file)
+        
+
+
 
 
 @client.command(brief="Retrieves runes for a LoL champ")
