@@ -81,6 +81,11 @@ async def game(ctx, action : str, amount : int=0):
     except:
       await member.send("**No games found**")
       return
+  with open("bank.json", "r") as file:
+    try:
+      bank = json.load(file)
+    except:
+      print("ERROR: There are no members in the bank")
   # check if member is in a game
   for game in games:
     if member in games[game]['members']:
@@ -94,7 +99,44 @@ async def game(ctx, action : str, amount : int=0):
     members_obj.append(player_obj)
   game_name = games[game_id]['game']
   members_array = list(games[game_id]['members'].keys())
+  member_name = ctx.message.author.name
   # different actions
+  async def next_turn():
+    turn = int(games[game_id]['turn'])
+    total_players = len(members_array)
+    turn += 1
+    # new round
+    if turn == total_players:
+      # DETERMINE WHO WINS HERE
+      turn = 0
+      start = int(games[game_id]['start']) + 1 if int(games[game_id]['start']) + 1 != total_players else 0
+      start2 = int(games[game_id]['start']) + 2 if int(games[game_id]['start']) + 2 != total_players else 0
+      big = await client.fetch_user(int(members_array[start]))
+      small = await client.fetch_user(int(members_array[start2]))
+      bankrupt = []
+      for member in games[game_id]['members']:
+        games[game_id]['members'][member]['debt'] = '0'
+        games[game_id]['members'][member]['hand'] = []
+        if int(bank[member][0]) != 0:
+          games[game_id]['members'][member]['status'] = 'Playing'
+        else:
+          bankrupt.append(member.name)
+          games[game_id]['members'].pop(member)
+          total_players -= 1
+      for player in members_obj:
+        await player.send(f"**Round over! PERSON WON!!!**")
+        if bankrupt != []:
+          for member in bankrupt:
+            await player.send(f"**{member} wen't bankrupt :(**")
+        if(total_player >= 2):
+          await player.send(f"**The new big blind is {big.name} and the new small blind is {small.name}"**)
+        else:
+          await player.send(f"**Game over! Not enough people to play poker!**)
+          games.pop(game_id)
+
+
+    games[game_id]['turn'] = str(turn)
+
   if action == 'start':
     # next(iter(games[game_id]['members'])) gets first index of dictionary 'members'
     if member == members_array[0]:
@@ -108,7 +150,7 @@ async def game(ctx, action : str, amount : int=0):
         
         for player in members_obj:
           # sending messages to all players
-          await player.send(f"**{ctx.message.author.name} has started the {game_name} game!**")
+          await player.send(f"**{member_name} has started the {game_name} game!**")
 
           # give players starting hand card1
           index = await random_card(games[game_id]['deck'])
@@ -127,26 +169,38 @@ async def game(ctx, action : str, amount : int=0):
       else: await sender.send("*You need at least 2 players in the lobby or the game has already started*")
     else: await sender.send("*Only the owner of the game can do that*")
   # checks if it is member's turn
+
   elif member != members_array[int(games[game_id]['turn'])]:
     await sender.send("*It is not your turn*")
+
   elif action == 'raise':
-    # checks if it's player's turn
-    with open("bank.json", "r") as file:
-      try:
-        bank = json.load(file)
-      except:
-        print("ERROR: There are no members in the bank")
     # check if raise is possible with current money
     member_money = int(bank[member][0]) - int(games[game_id]['members'][member]['debt'])
     if amount > 0 and member_money - amount >= 0:
       # valid raise
       for player in members_obj:
-        await player.send(f"*{ctx.message.author.name} has raised the bet by ${amount}!*")
+        await player.send(f"*{member_name} has raised the bet by ${amount}!*")
         player_debt = int(games[game_id]['members'][str(player.id)]['debt'])
         player_debt += amount
         games[game_id]['members'][str(player.id)]['debt'] = str(player_debt)
-    else:
+    elif member_money - amount < 0:
       sender.send(f"*You can't raise ${amount}, you currently have ${member_money} to raise if you subtract the cost to call*")
+    else:
+      sender.send("*You are alreadt all-in. Try using '%game check' instead.*")
+
+  elif action == 'call':
+    member_money = int(bank[member][0])
+    member_debt = int(games[game_id]['members'][member]['debt'])
+    if member_money == 0:
+      await sender.send("*You are already all-in. Try using '%game check' instead.*")
+    elif member_money > member_debt:
+      games[game_id]['members'][member]['debt'] = '0'
+      for player in members_obj:
+        await player.send(f"*{member_name} has called the bet of ${member_debt}*")
+    else:
+      games[game_id]['members'][member]['debt'] = '0'
+      for player in members_obj:
+        await player.send(f"*{member_name} has called the bet with ${member_money} and is now all-in!*")
 
 
   # dump new info
