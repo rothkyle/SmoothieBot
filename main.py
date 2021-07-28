@@ -27,31 +27,47 @@ async def on_ready():
 
 
 @client.command()
+async def test(ctx):
+  embed = discord.Embed(title="Title", description="Desc", color=discord.Color.gold()) #creates embed
+  file = discord.File("owen.png", filename="image.png")
+  embed.set_image(url="attachment://image.png")
+  await ctx.send(file=file, embed=embed)
+
+
+@client.command(brief="Create a poker game")
 async def poker(ctx):
-  with open("poker.json", "r") as file:
+  with open("games.json", "r") as file:
     try:
-      poker = json.load(file)
+      games = json.load(file)
     except:
-      poker = dict()
+      games = dict()
 
   with open("bank.json", "r") as file:
     try:
       bank = json.load(file)
     except:
       print("There are no members in the bank")
-      await ctx.send("Fatal error")
+      await ctx.send("**Something went wrong.**")
   
   owner = str(ctx.message.author.id)
 
   # check if owner is already in a game
-  for game in poker:
+  for game in games:
     for member in poker[game]['members']['id']:
       if member == owner:
-        ctx.send("Can't participate in 2 poker games at once.")
+        ctx.send(f"**Can't participate in 2 games at once. You are currently in a {game} game.**")
         return
   
   if owner in bank:
     if int(bank[owner][0]) >= 100:
+      message = await ctx.send("**POKER: React to this message if you would like to play!**")
+      await message.add_reaction("✅")
+      denver = pytz.timezone('America/Denver')
+      denver_time = datetime.now(denver)
+      goalTime = denver_time + timedelta(hours=2)
+      goalString = str(goalTime)
+      # write formatted goal to file
+      formattedGoal = goalString[0:19]
       # each member who joins will have an id and status
       player_info = {
         'id': owner,
@@ -59,11 +75,14 @@ async def poker(ctx):
       }
       # information about the game
       new_poker = {
+        'game': 'poker',
         'pot': '0',
         'members': [player_info],
-        'deck': ['ha','h2','h3','h4','h5','h6','h7','h8','h9','h1','hj','hq','hk','sa','s2','s3','s4','s5','s6','s7','s8','s9','s1','sj','sq','sk','da','d2','d3','d4','d5','d6','d7','d8','d9','d1','dj','dq','dk','ca','c2','c3','c4','c5','c6','c7','c8','c9','c1','cj','cq','ck']
-        'start':'0' # index of who started off the round (for big/little blind)
-        'turn': '0' # index of whos turn it currently is
+        'deck': ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33','34','35','36','37','38','39','40','41','42','43','44','45','46','47','48','49','50','51','52'],
+        'start':'0', # index of who started off the round (for big/little blind)
+        'turn': '0', # index of whos turn it currently is
+        'message_id': str(message.id),
+        'end_time': formattedGoal # 2 hours after game is made
       }
       poker[str(ctx.message.author.id)] = new_poker
       with open("poker.json", "w") as file:
@@ -73,6 +92,19 @@ async def poker(ctx):
   else:
     await ctx.send("**You dont have money set up! Every hour money is updated and your bank account will be created.**")
     
+
+@client.command(brief="Returns your total money")
+async def bank(ctx):
+  with open("bank.json", "r") as file:
+    try:
+      bank = json.load(file)
+    except:
+      print("There are no members in the bank")
+  member = str(ctx.message.author.id)
+  if member not in bank:
+    await ctx.send("**You dont have money set up! Every hour money is updated and your bank account will be created.**")
+  else:
+    await ctx.send(f"**You currently have ${bank[member][0]} in your bank account.**")
 
 
 
@@ -335,7 +367,7 @@ async def ball(ctx):
   json_data = json.loads(response.text)
   #use key to answer
   answer = str(json_data["magic"]["answer"])
-  await ctx.send(answer)
+  await ctx.send(f"*{answer}*")
 
 
 @client.command()
@@ -347,9 +379,9 @@ async def hello(ctx):
 async def flip(ctx):
   side = random.randint(1, 2)
   if (side == 1):
-    await ctx.send("**Heads**")
+    await ctx.send("*Heads*")
   else:
-    await ctx.send("**Tails**")
+    await ctx.send("*Tails*")
 
 
 @client.command(brief="Create a customizable 'looking for group' message", description="Create a customizable 'looking for group' message. First type '%lfg' followed by the number of people needed, the event name of the lfg, the number of hours you want the lfg to last, and true/false if the lfg is scheduled or not. Scheduled means that at the end of the inputted time, the message will send. If it isn't scheduled, the notification message will send immediately when the goal is met. The number of hours and scheduled are set to 12 and false respectively by default, so these are not necessary to create an lfg message.")
@@ -535,18 +567,18 @@ async def check():
         print("No players stored in bank")
         bank = dict()
     
-    new_players = []
+    repeat_members = []
     # adds members who are not in bank to bank
     for guild in client.guilds:
       for member in guild.members:
-        if member not in bank:
-          bank[str(member.id)] = ["10000"]
-          new_players.append(member.id)
-        elif member not in new_players:
-          #add money to existing players
+        if str(member.id) not in bank:
+          bank[str(member.id)] = ["5000"]
+        elif member.id not in repeat_members:
+          #add money to existing members
           money = int(bank[str(member.id)][0])
           money += 100
           bank[str(member.id)][0] = str(money)
+        repeat_members.append(member.id)
     
     all_lfg["time"] = str(extracted_new_day + timedelta(hours=1))
 
