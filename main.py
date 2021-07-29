@@ -58,9 +58,10 @@ async def return_card(card):
     number_name = "Jack"
   elif number == 12:
     number_name = "Queen"
-  elif number == 13:
+  elif number == 0:
     number_name = "King"
-  return number_name, suit_name
+  card_name = number_name + " of " + suit_name
+  return card_name
 
 
 async def random_card(deck):
@@ -100,56 +101,104 @@ async def game(ctx, action : str, amount : int=0):
   game_name = games[game_id]['game']
   members_array = list(games[game_id]['members'].keys())
   member_name = ctx.message.author.name
-  # different actions
+  member_money = int(bank[member][0])
+  member_debt = int(games[game_id]['members'][member]['debt'])
+  curr_pot = int(games[game_id]['pot'])
+
   async def next_turn():
     turn = int(games[game_id]['turn'])
     total_players = len(members_array)
+    repeat = bool(games[game_id]['repeat'])
+    end = True if len(games[game_id]['community_cards']) == 5 else False
     turn += 1
     # new round
-    if turn == total_players:
+    if turn == total_players and repeat:
+      print("Drawing card")
+    elif turn == total_players and not repeat:
       # DETERMINE WHO WINS HERE
       turn = 0
-      start = int(games[game_id]['start']) + 1 if int(games[game_id]['start']) + 1 != total_players else 0
-      start2 = int(games[game_id]['start']) + 2 if int(games[game_id]['start']) + 2 != total_players else 0
-      big = await client.fetch_user(int(members_array[start]))
-      small = await client.fetch_user(int(members_array[start2]))
-      bankrupt = []
-      for member in games[game_id]['members']:
-        games[game_id]['members'][member]['debt'] = '0'
-        games[game_id]['members'][member]['hand'] = []
-        if int(bank[member][0]) != 0:
-          games[game_id]['members'][member]['status'] = 'Playing'
-        else:
-          bankrupt.append(member.name)
-          games[game_id]['members'].pop(member)
-          total_players -= 1
-      for player in members_obj:
-        await player.send(f"**Round over! PERSON WON!!!**")
-        if bankrupt != []:
-          for member in bankrupt:
-            await player.send(f"**{member} wen't bankrupt :(**")
-        if(total_player >= 2):
-          await player.send(f"**The new big blind is {big.name} and the new small blind is {small.name}"**)
-        else:
-          await player.send(f"**Game over! Not enough people to play poker!**)
+      if end:
+        # finish game
+        start = int(games[game_id]['start']) + 1 if int(games[game_id]['start']) + 1 != total_players else 0
+        start2 = int(games[game_id]['start']) + 2 if int(games[game_id]['start']) + 2 != total_players else int(games[game_id]['start']) + 2 - total_players
+        big = await client.fetch_user(int(members_array[start]))
+        small = await client.fetch_user(int(members_array[start2]))
+        bankrupt = []
+        for member in games[game_id]['members']:
+          games[game_id]['members'][member]['debt'] = '0'
+          games[game_id]['members'][member]['hand'] = []
+          if int(bank[member][0]) != 0:
+            games[game_id]['members'][member]['status'] = 'Playing'
+          else:
+            bankrupt.append(member.name)
+            games[game_id]['members'].pop(member)
+            total_players -= 1
+        for player in members_obj:
+          await player.send(f"**Round over! PERSON WON!!!**")
+          if bankrupt != []:
+            for member in bankrupt:
+              await player.send(f"**{member} wen't bankrupt :(**")
+          if(total_players >= 2):
+            await player.send(f"**The new big blind is {big.name} and the new small blind is {small.name}**")
+          else:
+            await player.send(f"**Game over! Not enough people to play.**")
+        if total_players < 2:
           games.pop(game_id)
+      else:
+        # draw card and continue game
+        index = await random_card(games[game_id]['deck'])
+        games[game_id]['community_cards'].append(games[game_id]['deck'][index])
+        card = games[game_id]['deck'].pop(index)
+        card = await return_card(card)
+        for player in members_obj:
+          await player.send(f"**The {card} was drawn for the community cards**")
+    
+    # update information
+    with open("games.json","w") as file:
+      json.dump(games, file)
+    with open("bank.json","w") as file:
+      json.dump(bank, file)
+
+
+    else:
+      for player in members_obj:
+        await player.send(f"*It is now {members_array[turn]} turn*")
+    return
+      
 
 
     games[game_id]['turn'] = str(turn)
-
+  # different actions
   if action == 'start':
     # next(iter(games[game_id]['members'])) gets first index of dictionary 'members'
     if member == members_array[0]:
       if len(games[game_id]['members'][member]['hand']) == 0 and len(games[game_id]['members']) > 1:
         
         # pick community cards
+        community_cards = []
         for x in range(3):
           index = await random_card(games[game_id]['deck'])
           games[game_id]['community_cards'].append(games[game_id]['deck'][index])
           card = games[game_id]['deck'].pop(index)
+          card_name = await return_card(card)
+          community_cards.append(card_name)
+        community = ""
+        for card_num, card in enumerate(community_cards):
+          if card_num != 2:
+            community += card + ", "
+          else:
+            community += card + "!"
         
-        for player in members_obj:
+        for player_index,player in enumerate(members_obj):
+          start = int(games[game_id]['start'])
           # sending messages to all players
+          if player_index == start:
+            # big blind
+            games[game_id]['members'][str(player.id)]['debt'] == '250'
+          elif player_index == start + 1:
+            # little blind
+            games[game_id]['members'][str(player.id)]['debt'] == '125'
+
           await player.send(f"**{member_name} has started the {game_name} game!**")
 
           # give players starting hand card1
@@ -163,15 +212,15 @@ async def game(ctx, action : str, amount : int=0):
           games[game_id]['members'][str(player.id)]['hand'].append(games[game_id]['deck'][index])
           card = games[game_id]['deck'].pop(index)
           card2 = await return_card(card)
-
-          await player.send(f"You drew a {card1[0]} of {card1[1]} and a {card2[0]} of {card2[1]}!")
+          await player.send(f"The community cards are {community}")
+          await player.send(f"**You drew a {card1} and a {card2}**!")
         # update hands and deck
       else: await sender.send("*You need at least 2 players in the lobby or the game has already started*")
     else: await sender.send("*Only the owner of the game can do that*")
   # checks if it is member's turn
-
   elif member != members_array[int(games[game_id]['turn'])]:
-    await sender.send("*It is not your turn*")
+    current_turn_name = await client.fetch_user(int(members_array[int(games[game_id]['turn'])]))
+    await sender.send(f"*It is {current_turn_name.name}'s' turn*")
 
   elif action == 'raise':
     # check if raise is possible with current money
@@ -183,29 +232,40 @@ async def game(ctx, action : str, amount : int=0):
         player_debt = int(games[game_id]['members'][str(player.id)]['debt'])
         player_debt += amount
         games[game_id]['members'][str(player.id)]['debt'] = str(player_debt)
+      games[game_id]['pot'] = str(curr_pot + amount)
+      bank[member][0] = str(member_money - amount)
+
     elif member_money - amount < 0:
       sender.send(f"*You can't raise ${amount}, you currently have ${member_money} to raise if you subtract the cost to call*")
     else:
-      sender.send("*You are alreadt all-in. Try using '%game check' instead.*")
+      sender.send("*You are already all-in. Try using '%game check' instead.*")
 
   elif action == 'call':
-    member_money = int(bank[member][0])
-    member_debt = int(games[game_id]['members'][member]['debt'])
     if member_money == 0:
       await sender.send("*You are already all-in. Try using '%game check' instead.*")
     elif member_money > member_debt:
       games[game_id]['members'][member]['debt'] = '0'
+      # subtract from bank
+      bank[member][0] = str(member_money - amount)
+      # send update to players
       for player in members_obj:
         await player.send(f"*{member_name} has called the bet of ${member_debt}*")
     else:
       games[game_id]['members'][member]['debt'] = '0'
+      bank[member][0] = '0'
       for player in members_obj:
         await player.send(f"*{member_name} has called the bet with ${member_money} and is now all-in!*")
 
-
+  elif action == 'check':
+    if member_debt == 0 or member_money == 0:
+      await next_turn()
+    else:
+      await sender.send(f"*You must pay {member_debt} to continue*")
   # dump new info
   with open("games.json","w") as file:
     json.dump(games, file)
+  with open("bank.json","w") as file:
+    json.dump(bank, file)
 
   
 
@@ -264,6 +324,7 @@ async def poker(ctx):
         'start':'0', # index of who started off the round (for big/little blind)
         'turn': '0', # index of whos turn it currently is
         'end_time': formattedGoal, # 2 hours after game is made
+        'repeat':'False'
       }
       # member info
       games[str(in_embed.id)] = new_poker
