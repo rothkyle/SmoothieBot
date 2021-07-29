@@ -201,13 +201,18 @@ async def game(ctx, action : str, amount : int=0):
         for member in games[game_id]['members']:
           games[game_id]['members'][member]['debt'] = '0'
           games[game_id]['members'][member]['hand'] = []
-          games[game_id]['repeat_count'] = '0'
           if int(bank[member][0]) != 0:
             games[game_id]['members'][member]['status'] = 'Playing'
           else:
             bankrupt.append(member.name)
             games[game_id]['members'].pop(member)
             total_players -= 1
+        # reset poker game
+        games[game_id]['community_cards'] = []
+        games[game_id]['repeat_count'] = '0'
+        games[game_id]['pot'] = '0'
+        games[game_id]['turn'] = '0'
+        games[game_id]['deck'] = ['021','031','041','051','061','071','081','091','101','111','121','131','141','022','032','042','052','062','072','082','092','102','112','122','132','142','023','033','043','053','063','073','083','093','103','113','123','133','143','024','034','044','054','064','074','084','094','104','114','124','134','144']
         # send update to each player
         for player in members_obj:
           if bankrupt != []:
@@ -219,7 +224,6 @@ async def game(ctx, action : str, amount : int=0):
             await player.send(f"**Game over! Not enough people to play.**")
         if total_players < 2:
           games.pop(game_id)
-        games[game_id]['pot'] = '0'
       elif not repeat:
         # draw card and continue game
         index = await random_card(games[game_id]['deck'])
