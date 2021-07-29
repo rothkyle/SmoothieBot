@@ -166,6 +166,14 @@ optional = false
 python-versions = ">=3.6"
 
 [[package]]
+name = "pokereval"
+version = "0.2.0"
+description = "A pure python poker hand evaluator for 5, 6, 7 cards"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "pycparser"
 version = "2.20"
 description = "C parser in Python"
@@ -276,7 +284,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "e252fbb327ace391eac5b60f6899c20de71d530a23e9612afa869f75e06fd071"
+content-hash = "3112b1673df2ba022cbf5412a5d3b945a9ecedb42258e3239430f007b1bf4b44"
 
 [metadata.files]
 aiohttp = [
@@ -483,6 +491,10 @@ multidict = [
     {file = "multidict-5.1.0-cp39-cp39-win32.whl", hash = "sha256:fc13a9524bc18b6fb6e0dbec3533ba0496bbed167c56d0aabefd965584557d80"},
     {file = "multidict-5.1.0-cp39-cp39-win_amd64.whl", hash = "sha256:7df80d07818b385f3129180369079bd6934cf70469f99daaebfac89dca288359"},
     {file = "multidict-5.1.0.tar.gz", hash = "sha256:25b4e5f22d3a37ddf3effc0710ba692cfc792c2b9edfb9c05aefe823256e84d5"},
+]
+pokereval = [
+    {file = "pokereval-0.2.0-py3-none-any.whl", hash = "sha256:cbcdac21a2cbd329998c2ab39cd2e30ad4ec4215c1bf7e0ff2ff017c076472f4"},
+    {file = "pokereval-0.2.0.tar.gz", hash = "sha256:b85ab5cc10f9392da474b5538803ea1a89ff41a02c231f498497b3bba95f2e3a"},
 ]
 pycparser = [
     {file = "pycparser-2.20-py2.py3-none-any.whl", hash = "sha256:7582ad22678f0fcd81102833f60ef8d0e57288b6b5fb00323d101be910e35705"},
