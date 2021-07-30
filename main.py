@@ -144,30 +144,38 @@ async def game(ctx, action : str, amount : int=0):
   game_name = games[game_id]['game']
   members_array = list(games[game_id]['members'].keys())
   member_name = ctx.message.author.name
+  owner = await client.fetch_user(int(members_array[0]))
   member_money = int(bank[member][0])
   member_debt = int(games[game_id]['members'][member]['debt'])
   curr_pot = int(games[game_id]['pot'])
   started = False
-  total_playing = 0
   total_players = len(members_array)
   turn = int(games[game_id]['turn'])
-  turn_next = (turn + 1) % total_players
-  while games[game_id]['members'][members_array[turn_next]]['hand'] == []:
-    turn_next = (turn_next + 1) % total_players
-  prev_turn = str((turn - 1) % total_players)
-
+  
   for player in members_array:
     if games[game_id]['members'][player]['hand'] != []:
-      total_playing += 1
       started = True
+  turn_next = (turn + 1) % total_players
+  while games[game_id]['members'][members_array[turn_next]]['hand'] == [] and started:
+    turn_next = (turn_next + 1) % total_players
+  prev_turn = (turn - 1) % total_players
+  while games[game_id]['members'][members_array[prev_turn]]['hand'] == [] and started:
+    prev_turn = (prev_turn + 1) % total_players
+  
   async def next_turn():
     curr_turn = games[game_id]['turn']
     draw = True if games[game_id]['go_to'] == curr_turn else False
     turn = turn_next
     total_players = len(members_array)
-    end = True if len(games[game_id]['community_cards']) == 5  and not draw else False
+    end = True if len(games[game_id]['community_cards']) == 5  and draw else False
+    total_playing = 0
+    for player in members_array:
+      if games[game_id]['members'][player]['hand'] != []:
+        total_playing += 1
     if total_playing == 1:
       end = True
+      draw = True
+      games[game_id]['community_cards'] = ["064", "084", "094", "104", "114"]
     start = int(games[game_id]['start'])
     if games[game_id]['loop_count'] == '2':
       games[game_id]['loop_count'] = '0'
@@ -175,7 +183,7 @@ async def game(ctx, action : str, amount : int=0):
     # new round
     if draw:
       # pick community cards
-      if games['game_id']['community_cards'] == []:
+      if games[game_id]['community_cards'] == []:
         community_cards = []
         for x in range(3):
           index = await random_card(games[game_id]['deck'])
@@ -208,7 +216,7 @@ async def game(ctx, action : str, amount : int=0):
         # get scores of all players
         for player in members_array:
           # creates score for each remaining player in game
-          games[game_id]['members'][player]['hand'] != []:
+          if games[game_id]['members'][player]['hand'] != []:
             new_score = (player, await hand_value(games[game_id]['members'][player]['hand'], games[game_id]['community_cards']))
             scores.append(new_score)
         max_score = str(max(scores)[1])
@@ -240,15 +248,12 @@ async def game(ctx, action : str, amount : int=0):
             games[game_id]['members'].pop(member)
             total_players -= 1
         # reset poker game
-        start = str((int(games[game_id]['start']) + 1) % total_players)
-        start2 = str((int(games[game_id]['start']) + 2) % total_players)
-        big = await client.fetch_user(int(members_array[start]))
-        small = await client.fetch_user(int(members_array[start2]))
         games[game_id]['community_cards'] = []
         games[game_id]['go_to'] = games[game_id]['start']
-        games[game_id]['start'] = str(start)
+        games[game_id]['start'] = str(turn_next)
         games[game_id]['pot'] = '0'
-        games[game_id]['turn'] = '0'
+        games[game_id]['turn'] = str(turn_next)
+        games[game_id]['last_raise'] = '0'
         games[game_id]['deck'] = ['021','031','041','051','061','071','081','091','101','111','121','131','141','022','032','042','052','062','072','082','092','102','112','122','132','142','023','033','043','053','063','073','083','093','103','113','123','133','143','024','034','044','054','064','074','084','094','104','114','124','134','144']
         # send update to each player
         for player in members_obj:
@@ -256,7 +261,7 @@ async def game(ctx, action : str, amount : int=0):
             for member in bankrupt:
               await player.send(f"**{member} wen't bankrupt :(**")
           if(total_players >= 2):
-            await player.send(f"**The new big blind is {big.name} and the new small blind is {small.name}**")
+            await player.send(f"**{owner.name} can start a new game or end this lobby with '%game end'**")
           else:
             await player.send(f"**Game over! Not enough people to play.**")
         if total_players < 2:
@@ -288,19 +293,18 @@ async def game(ctx, action : str, amount : int=0):
         games[game_id]['go_to'] = str(prev_turn)
         start = int(games[game_id]['start'])
         big = start
-        little = 0 if start + 1 == total_players else start + 1
+        little = turn_next
         big_member = await client.fetch_user(int(members_array[big]))
         small_member = await client.fetch_user(int(members_array[little]))
         for player_index,player in enumerate(members_obj):
           # sending messages to all players
           if player_index == big:
             # big blind
-            games[game_id]['members'][str(player.id)]['debt'] = '250'
+            games[game_id]['members'][str(player.id)]['debt'] = '500'
           elif player_index == little:
             # little blind
-            games[game_id]['members'][str(player.id)]['debt'] = '125'
-          games[game_id]['pot'] = '375'
-          await player.send(f"**{member_name} has started the {game_name} game!\nThe new big blind is {big_member.name} and the new small blind is {small_member.name}**")
+            games[game_id]['members'][str(player.id)]['debt'] = '250'
+          await player.send(f"**{member_name} has started the {game_name} game!\nThe new big blind is {big_member.name} ($500) and the new small blind is {small_member.name} ($250)**")
 
           # give players starting hand card1
           index = await random_card(games[game_id]['deck'])
@@ -328,11 +332,15 @@ async def game(ctx, action : str, amount : int=0):
     member_money = int(bank[member][0])
 
     if last_raise > amount:
-      await sender.send("*Your raise must be greater than or equal to the last raise*")
+      await sender.send(f"*Your raise must be greater than or equal to the last raise (${last_raise})*")
     elif amount > 0 and member_money - amount - member_debt >= 0:
       # valid raise
+      if member_debt == 0:
+        message = f"*{member_name} has raised the bet by ${amount}!*"
+      else:
+        message = f"*{member_name} has called the ${member_debt} and raised the bet by ${amount}!*"
       for player_index, player in enumerate(members_obj):
-        await player.send(f"*{member_name} has raised the bet by ${amount}!*")
+        await player.send(message)
         player_debt = int(games[game_id]['members'][str(player.id)]['debt'])
         player_debt += amount
         games[game_id]['members'][str(player.id)]['debt'] = str(player_debt)
@@ -342,10 +350,10 @@ async def game(ctx, action : str, amount : int=0):
       games[game_id]['last_raise'] = str(amount)
       games[game_id]['members'][member]['debt'] = '0'
       await next_turn()
-    elif member_money - amount > 0:
-      await sender.send(f"*You don't have enough money to raise by ${amount} (use %bank to see your balance)*")
     elif member_money - amount - member_debt < 0:
       await sender.send(f"*You don't have enough money to call the previous ${member_debt} and raise by ${amount}.*")
+    elif member_money - amount < 0:
+      await sender.send(f"*You don't have enough money to raise by ${amount} (use %bank to see your balance)*")
     elif member_money == 0:
       await sender.send("*You are already all-in. Try using '%game check' instead.*")
     else:
@@ -379,17 +387,17 @@ async def game(ctx, action : str, amount : int=0):
         await player.send(f"*{member_name} checked*")
       await next_turn()
     else:
-      await sender.send(f"*You must pay ${member_debt} to continue*")
+      await sender.send(f"*You must pay the ${member_debt} to continue*")
   
   elif action == 'end':
-    if not started:
-      await sender.send("*You can only end the game before the game has started*")
-    elif member == members_array[0]:
+    if member == members_array[0]:
       for player in members_obj:
         await player.send(f"***{member_name} has ended the game***")
       games.pop(game_id)
+    elif started:
+      await sender.send(f"*Only the owner of the game ({owner.name}) can do that at the before the round has started*")
     else:
-      await sender.send(f"*Only the owner of the game can do that*")
+      await sender.send("*You can only end the game before the round has started*")
 
   elif action == 'fold' and started:
     for player in members_obj:
