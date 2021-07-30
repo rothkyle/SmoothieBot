@@ -149,28 +149,32 @@ async def game(ctx, action : str, amount : int=0):
   curr_pot = int(games[game_id]['pot'])
   started = False
   total_playing = 0
+  total_players = len(members_array)
+  turn = int(games[game_id]['turn'])
+  turn_next = (turn + 1) % total_players
+  while games[game_id]['members'][members_array[turn_next]]['hand'] != []:
+    turn_next = (turn_next + 1) % total_players
+  prev_turn = str((turn - 1) % total_players)
+
   for player in members_array:
     if games[game_id]['members'][player]['hand'] != []:
       total_playing += 1
       started = True
-    
   async def next_turn():
-    turn = int(games[game_id]['turn'])
-    turn += 1
+    turn = turn_next
+    draw = True if games[game_id]['go_to'] == str(turn) else False
     total_players = len(members_array)
-    repeat = False if games[game_id]['repeat'] == 'False' else True
-    end = True if len(games[game_id]['community_cards']) == 5  and not repeat else False
+    end = True if len(games[game_id]['community_cards']) == 5  and not draw else False
     if total_playing == 1:
       end = True
-      repeat = False
     start = int(games[game_id]['start'])
+    if games[game_id]['loop_count'] == '2':
+      games[game_id]['loop_count'] = '0'
+      draw = True
     # new round
-    if turn == total_players:
-      if games[game_id]['repeat_count'] == '2':
-        games[game_id]['repeat_count'] = '0'
-        repeat = False
-      turn = 0
-      if not repeat and end:
+    if draw:
+      # check if next hand is empty
+      if end:
         scores = []
         # get scores of all players
         for player in members_array:
@@ -192,10 +196,6 @@ async def game(ctx, action : str, amount : int=0):
           winner_money += winner_pot
           bank[winner_id][0] = str(winner_money)
         # finish game
-        start = int(games[game_id]['start']) + 1 if int(games[game_id]['start']) + 1 != total_players else 0
-        start2 = int(games[game_id]['start']) + 2 if int(games[game_id]['start']) + 2 != total_players else int(games[game_id]['start']) + 2 - total_players
-        big = await client.fetch_user(int(members_array[start]))
-        small = await client.fetch_user(int(members_array[start2]))
         bankrupt = []
         # update each player
         for member in games[game_id]['members']:
@@ -208,8 +208,13 @@ async def game(ctx, action : str, amount : int=0):
             games[game_id]['members'].pop(member)
             total_players -= 1
         # reset poker game
+        start = str((int(games[game_id]['start']) + 1) % total_players)
+        start2 = str((int(games[game_id]['start']) + 2) % total_players)
+        big = await client.fetch_user(int(members_array[start]))
+        small = await client.fetch_user(int(members_array[start2]))
         games[game_id]['community_cards'] = []
-        games[game_id]['repeat_count'] = '0'
+        games[game_id]['go_to'] = games[game_id]['start']
+        games[game_id]['start'] = str(start)
         games[game_id]['pot'] = '0'
         games[game_id]['turn'] = '0'
         games[game_id]['deck'] = ['021','031','041','051','061','071','081','091','101','111','121','131','141','022','032','042','052','062','072','082','092','102','112','122','132','142','023','033','043','053','063','073','083','093','103','113','123','133','143','024','034','044','054','064','074','084','094','104','114','124','134','144']
@@ -224,7 +229,7 @@ async def game(ctx, action : str, amount : int=0):
             await player.send(f"**Game over! Not enough people to play.**")
         if total_players < 2:
           games.pop(game_id)
-      elif not repeat:
+      elif draw:
         # draw card and continue game
         index = await random_card(games[game_id]['deck'])
         games[game_id]['community_cards'].append(games[game_id]['deck'][index])
@@ -234,12 +239,12 @@ async def game(ctx, action : str, amount : int=0):
           await player.send(f"**The {card} was drawn for the community cards**")
       else:
         current_turn_name = await client.fetch_user(int(members_array[turn]))
-        games[game_id]['repeat'] == 'False'
-        games[game_id]['repeat_count'] = str(int(games[game_id]['repeat_count']) + 1)
+        games[game_id]['loop_count'] = str(int(games[game_id]['loop_count']) + 1)
         
         for player in members_obj:
           await player.send(f"*It is now {current_turn_name.name}'s turn*")
     else:
+      # check if next hand is empty
       current_turn_name = await client.fetch_user(int(members_array[turn]))
       for player in members_obj:
         await player.send(f"*It is now {current_turn_name.name}'s turn*")
@@ -251,12 +256,9 @@ async def game(ctx, action : str, amount : int=0):
       json.dump(bank, file)
     return
   
-  if started == True and games[game_id]['members'][member]['hand'] == []:
-    await next_turn()
 
   # different actions
   if action == 'start':
-    # next(iter(games[game_id]['members'])) gets first index of dictionary 'members'
     if started:
       await sender.send("*Game has already started*")
       return
@@ -278,9 +280,10 @@ async def game(ctx, action : str, amount : int=0):
           else:
             community += "and a " + card + "!"
         
+        games[game_id]['go_to'] = str(prev_turn)
         start = int(games[game_id]['start'])
         big = start
-        little = 0 if start + 1 == len(members_array) else start + 1
+        little = 0 if start + 1 == total_players else start + 1
         for player_index,player in enumerate(members_obj):
           # sending messages to all players
           if player_index == big:
@@ -330,7 +333,7 @@ async def game(ctx, action : str, amount : int=0):
         games[game_id]['members'][str(player.id)]['debt'] = str(player_debt)
       games[game_id]['pot'] = str(curr_pot + amount)
       bank[member][0] = str(member_money - amount - member_debt)
-      games[game_id]['repeat'] = 'True'
+      games[game_id]['go_to'] = str(prev_turn)
       games[game_id]['last_raise'] = str(amount)
       games[game_id]['members'][member]['debt'] = '0'
       await next_turn()
@@ -372,7 +375,9 @@ async def game(ctx, action : str, amount : int=0):
       await sender.send(f"*You must pay ${member_debt} to continue*")
   
   elif action == 'end':
-    if member == members_array[0]:
+    if not started:
+      await sender.send("*You can only end the game before the game has started*")
+    elif member == members_array[0]:
       for player in members_obj:
         await player.send(f"***{member_name} has ended the game***")
       games.pop(game_id)
@@ -383,6 +388,8 @@ async def game(ctx, action : str, amount : int=0):
     for player in members_obj:
       await player.send(f"*{member_name} has folded*")
     games[game_id]['members'][member]['hand'] = []
+    games[game_id]['members'][member]['status'] = 'Fold'
+    await next_turn()
   # dump new info
   elif not started:
     await sender.send("*Game hasn't started*")
@@ -454,8 +461,8 @@ async def poker(ctx):
         'start':'0', # index of who started off the round (for big/little blind)
         'turn': '0', # index of whos turn it currently is
         'end_time': formattedGoal, # 2 hours after game is made
-        'repeat':'False',
-        'repeat_count':'0',
+        'go_to':'-1',
+        'loop_count':'0',
         'last_raise':'0'
       }
       # member info
