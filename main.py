@@ -25,7 +25,7 @@ client = commands.Bot(command_prefix="%", intents = intents)
 @client.event
 async def on_ready():
   print("Bot is up and running")
-  asyncio.create_task(check())
+  await check()
   #asyncio.create_task(currency_update())
 
 
@@ -86,7 +86,7 @@ async def hand_value(hand : list, community : list):
   return score
   
   
-@client.command()
+@client.command(brief="Allows you to type to other people in your game")
 async def gamechat(ctx, *, message):
   member = str(ctx.message.author.id)
   with open("games.json","r") as file:
@@ -113,7 +113,7 @@ async def random_card(deck):
   return index
 
 
-@client.command()
+@client.command(brief="Used to interact with games (use \"%help game\" for more)", description="Poker Actions:\n\nStart: The owner of the game can use this to start the game.\nCheck: Passes your turn\nRaise: Raises the bet of the current turn. Everyone must pay this amount to keep playing. Use \"%game raise <amount>\".\nCall : Allows you to pay for the previous bet or blind to keep playing.\nFold : Give up on the current round.")
 async def game(ctx, action : str, amount : int=0):
   action = action.lower()
   member = str(ctx.message.author.id)
@@ -135,7 +135,7 @@ async def game(ctx, action : str, amount : int=0):
     if member in games[game]['members']:
       game_id = game
   if game == "":
-    await member.send("**You are not in a game**")
+    await sender.send("**You are not in a game**")
     return
   members_obj = []
   for member_id in games[game]['members']:
@@ -151,7 +151,7 @@ async def game(ctx, action : str, amount : int=0):
   started = False
   total_players = len(members_array)
   turn = int(games[game_id]['turn'])
-  
+
   for player in members_array:
     if games[game_id]['members'][player]['hand'] != []:
       started = True
@@ -304,7 +304,7 @@ async def game(ctx, action : str, amount : int=0):
           elif player_index == little:
             # little blind
             games[game_id]['members'][str(player.id)]['debt'] = '250'
-          await player.send(f"**{member_name} has started the {game_name} game!\nThe new big blind is {big_member.name} ($500) and the new small blind is {small_member.name} ($250)**")
+          await player.send(f"**{member_name} has started the {game_name} game!\nThe big blind is {big_member.name} ($500) and the small blind is {small_member.name} ($250)**")
 
           # give players starting hand card1
           index = await random_card(games[game_id]['deck'])
@@ -320,7 +320,7 @@ async def game(ctx, action : str, amount : int=0):
           await player.send(f"**You drew a {card1} and a {card2}**!")
         # update hands and deck
       else: await sender.send("*You need at least 2 players in the lobby or the game has already started*")
-    else: await sender.send("*Only the owner of the game can do that*")
+    else: await sender.send(f"*Only the owner of the game ({owner.name}) can do that*")
   # checks if it is member's turn
   elif member != members_array[int(games[game_id]['turn'])] and started:
     current_turn_name = await client.fetch_user(int(members_array[int(games[game_id]['turn'])]))
@@ -344,7 +344,7 @@ async def game(ctx, action : str, amount : int=0):
         player_debt = int(games[game_id]['members'][str(player.id)]['debt'])
         player_debt += amount
         games[game_id]['members'][str(player.id)]['debt'] = str(player_debt)
-      games[game_id]['pot'] = str(curr_pot + amount)
+      games[game_id]['pot'] = str(curr_pot + amount + member_debt)
       bank[member][0] = str(member_money - amount - member_debt)
       games[game_id]['go_to'] = str(prev_turn)
       games[game_id]['last_raise'] = str(amount)
@@ -387,15 +387,15 @@ async def game(ctx, action : str, amount : int=0):
         await player.send(f"*{member_name} checked*")
       await next_turn()
     else:
-      await sender.send(f"*You must pay the ${member_debt} to continue*")
+      await sender.send(f"*You must call the ${member_debt} to continue. Use '%game call' to call.*")
   
   elif action == 'end':
-    if member == members_array[0]:
+    if member == members_array[0] and not started:
       for player in members_obj:
         await player.send(f"***{member_name} has ended the game***")
       games.pop(game_id)
-    elif started:
-      await sender.send(f"*Only the owner of the game ({owner.name}) can do that at the before the round has started*")
+    elif member != members_array[0]:
+      await sender.send(f"*Only the owner of the game ({owner.name}) can do that before the round has started*")
     else:
       await sender.send("*You can only end the game before the round has started*")
 
@@ -787,6 +787,15 @@ async def flip(ctx):
 @client.command(brief="Create a customizable 'looking for group' message", description="Create a customizable 'looking for group' message. First type '%lfg' followed by the number of people needed, the event name of the lfg, the number of hours you want the lfg to last, and true/false if the lfg is scheduled or not. Scheduled means that at the end of the inputted time, the message will send. If it isn't scheduled, the notification message will send immediately when the goal is met. The number of hours and scheduled are set to 12 and false respectively by default, so these are not necessary to create an lfg message.")
 async def lfg(ctx, goal : str, game : str, numHours : float=12, scheduled: bool=False):
   if numHours <= 200.00 and numHours > 0.00 and int(goal) > 1:
+    if len(game) == 22:
+      try:
+        role_id = game[3:18]
+        print(role_id)
+        role = ctx.guild.get_role(role_id)
+        game = role.name
+      except:
+        print(role_id + " doesn't exist")
+    # get current time
     denver = pytz.timezone('America/Denver')
     denver_time = datetime.now(denver)
     goalTime = denver_time + timedelta(hours=float(numHours))
@@ -918,7 +927,7 @@ async def on_raw_reaction_add(payload):
           count -= 1
           members.remove(member)
           all_lfg[message_id]['members'].remove(str(member.id))
-          print(str(payload.member) + " has left the lfg")
+          print(f"{payload.member} has left the lfg for {lfg_name}.")
           des = str("People playing: " + str(count))
           if members == []:
             send_out = "N/A"
@@ -936,8 +945,8 @@ async def on_raw_reaction_add(payload):
             json.dump(all_lfg, file)
         await msg.remove_reaction("🚫", payload.member)
       return
-    member = str(payload.member.id)
-    if str(payload.emoji.name) == "✅":
+    elif str(payload.emoji.name) == "✅":
+      member = str(payload.member.id)
       with open("bank.json", "r") as file:
         try:
           bank = json.load(file)
@@ -946,8 +955,6 @@ async def on_raw_reaction_add(payload):
         if member not in bank:
           await payload.member.send("**You can't play because you dont have a bank account set up! Every hour money is updated and your bank account will be created.**")
           return
-        else:
-          await payload.member.send(f"**You have joined the poker game and you currently have ${bank[member][0]} in your bank account.**")
       with open("games.json", "r") as file:
         games = json.load(file)
       for game in games:
@@ -977,9 +984,11 @@ async def on_raw_reaction_add(payload):
           new_info = discord.Embed(title=("POKER: REACT WITH ✅ TO PLAY"), description=des, color=discord.Color.blue())
           new_info.add_field(name="Players:", value=send_out, inline=False)
           await in_embed.edit(embed=new_info)
+          await payload.member.send(f"**You have joined the poker game and you currently have ${bank[member][0]} in your bank account.**")
           # dump new info
           with open("games.json", "w") as file:
             json.dump(games, file)
+          break
         
 
 
@@ -1056,9 +1065,10 @@ async def check():
       lfg_name = all_lfg[file]['lfg_name']
       goal = int(all_lfg[file]['goal'])
       channel = client.get_channel(int(all_lfg[file]['channel_id']))
+      msg = await channel.fetch_message(int(all_lfg[file]['message_id']))
       in_embed = await channel.fetch_message(int(all_lfg[file]['embed_id']))
       members = all_lfg[file]['members']
-      scheduled = bool(all_lfg[file]['scheduled'])
+      scheduled = True if all_lfg[file]['scheduled'] == 'True' else False
       guild = all_lfg[file]['guild_name']
       count = len(members)
       names = []
@@ -1071,33 +1081,31 @@ async def check():
         elif scheduled and count != goal:
           await member_obj.send(f"**Your scheduled event for {lfg_name} in the '{guild}' server has failed to meet its goal, but you only need {goal - count} more!**")
         names.append(member_obj)
-      if names == []:
-        send_out = "N/A"
+      # delete unscheduled message but save scheduled message
+      if not scheduled:
+        await msg.delete()
+        await in_embed.delete()
       else:
-        for member in names:
-          send_out += (member.mention + "\n")
-      # update embed
-      des = str("People playing: " + str(count))
-      new_info = discord.Embed(title=("LFG for " + str(lfg_name)), description=des, color=discord.Color.red())
-      new_info.add_field(name="Players:", value=send_out, inline=True)
-      new_info.add_field(name="Goal Time:", value="Times up!", inline=False)
-      await in_embed.edit(embed=new_info)
-      # queue file for deletion
-      to_delete.append(file)
+        if names == []:
+          send_out = "N/A"
+        else:
+          for member in names:
+            send_out += (member.mention + "\n")
+        # update embed
+        des = str("People playing: " + str(count))
+        new_info = discord.Embed(title=("LFG for " + str(lfg_name)), description=des, color=discord.Color.red())
+        new_info.add_field(name="Players:", value=send_out, inline=True)
+        new_info.add_field(name="Goal Time:", value="Times up!", inline=False)
+        await in_embed.edit(embed=new_info)
+        # queue file for deletion
+        to_delete.append(file)
   for file in to_delete:
     all_lfg.pop(file)
   with open("lfg.json", "w") as file:
     json.dump(all_lfg, file)
   await asyncio.sleep(60)
   await check()
-"""
-async def currency_update():
-  #for guild in client.guilds:
-  #  for member in guild.members:
-  #    print(member)
-  await asyncio.sleep(3600)
-  await currency_update()
-"""
+
 #@client.command()
 #async def zoop(ctx):
 # playerid = "279056911926689793"
