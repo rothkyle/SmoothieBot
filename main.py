@@ -25,7 +25,8 @@ client = commands.Bot(command_prefix="%", intents = intents)
 @client.event
 async def on_ready():
   print("Bot is up and running")
-  await check()
+  #await check()
+  asyncio.create_task(check())
   #asyncio.create_task(currency_update())
 
 
@@ -785,13 +786,14 @@ async def flip(ctx):
 
 
 @client.command(brief="Create a customizable 'looking for group' message", description="Create a customizable 'looking for group' message. First type '%lfg' followed by the number of people needed, the event name of the lfg, the number of hours you want the lfg to last, and true/false if the lfg is scheduled or not. Scheduled means that at the end of the inputted time, the message will send. If it isn't scheduled, the notification message will send immediately when the goal is met. The number of hours and scheduled are set to 12 and false respectively by default, so these are not necessary to create an lfg message.")
-async def lfg(ctx, goal : str, game : str, numHours : float=12, scheduled: bool=False):
+async def lfg(ctx, goal : str, game : str, numHours : float=2, scheduled: bool=False):
   if numHours <= 200.00 and numHours > 0.00 and int(goal) > 1:
+    original_game = game
     if len(game) == 22:
       try:
-        role_id = game[3:18]
+        role_id = game[3:21]
         print(role_id)
-        role = ctx.guild.get_role(role_id)
+        role = ctx.guild.get_role(int(role_id))
         game = role.name
       except:
         print(role_id + " doesn't exist")
@@ -806,7 +808,7 @@ async def lfg(ctx, goal : str, game : str, numHours : float=12, scheduled: bool=
     embed = discord.Embed(title=("LFG for " + game), description="People playing: 1", color=discord.Color.blue())
     embed.add_field(name="Players:", value=ctx.message.author.mention, inline=True)
     embed.add_field(name="Goal Time:", value=formattedGoal, inline=False)
-    message = await ctx.send("**React to this message if you want to play " + game + ". We need " + goal + " people. React with ✅ to join and 🚫 to leave.**")
+    message = await ctx.send("**React to this message if you want to play " + original_game + ". We need " + goal + " people. React with ✅ to join and 🚫 to leave.**")
     in_embed = await ctx.send(embed=embed)
     messageid = message.id
     channel_id = message.channel.id
@@ -1097,14 +1099,15 @@ async def check():
         new_info.add_field(name="Players:", value=send_out, inline=True)
         new_info.add_field(name="Goal Time:", value="Times up!", inline=False)
         await in_embed.edit(embed=new_info)
-        # queue file for deletion
-        to_delete.append(file)
+      # queue file for deletion
+      to_delete.append(file)
   for file in to_delete:
     all_lfg.pop(file)
   with open("lfg.json", "w") as file:
     json.dump(all_lfg, file)
   await asyncio.sleep(60)
-  await check()
+  #await check()
+  await asyncio.create_task(check())
 
 #@client.command()
 #async def zoop(ctx):
