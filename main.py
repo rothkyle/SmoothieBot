@@ -3,6 +3,7 @@ import os
 import requests
 import json
 import random
+from PIL import Image
 from discord.ext import commands
 from keep_alive import keep_alive
 from datetime import datetime
@@ -12,7 +13,7 @@ import asyncio
 import youtube_dl
 import validators
 from pokereval.card import Card
-import math
+from operator import itemgetter
 from pokereval.hand_evaluator import HandEvaluator
 
 streams = os.getenv('streams')
@@ -20,6 +21,7 @@ random.seed()
 intents = discord.Intents.default()
 intents.members = True
 client = commands.Bot(command_prefix="%", intents = intents)
+deck_image = Image.open('deck.png')
 
 
 @client.event
@@ -46,9 +48,9 @@ async def return_card_name(card : str):
   number = str(temp_num)
   suit = card[2]
   if suit == '1':
-    suit = "Spades"
-  elif suit == '2':
     suit = "Hearts"
+  elif suit == '2':
+    suit = "Spades"
   elif suit == '3':
     suit = "Diamonds"
   elif suit == '4':
@@ -114,7 +116,43 @@ async def random_card(deck):
   return index
 
 
-@client.command(brief="Used to interact with games (use \"%help game\" for more)", description="Poker Actions:\n\nStart: The owner of the game can use this to start the game.\nCheck: Passes your turn\nRaise: Raises the bet of the current turn. Everyone must pay this amount to keep playing. Use \"%game raise <amount>\".\nCall : Allows you to pay for the previous bet or blind to keep playing.\nFold : Give up on the current round.")
+async def getCoords(face_num,suit_num):
+  if(face_num == 14):
+    face_num = 1
+  coords = (((face_num-1)*225), ((suit_num-1)*315),((face_num)*225), (((suit_num))*315))
+  return coords
+
+async def getCommunity(cards):
+  height = 315
+  width = 225 * len(cards)
+
+  river_image = Image.new('RGBA', (width, height), (0,0,0, 0))
+
+  for x in range(0, len(cards)):
+    card_temp = deck_image.crop(await getCoords(int(cards[x][0:2]), int(cards[x][2])))
+    river_image.paste(card_temp,(225*x, 0), mask=card_temp)
+  
+  river_image.save("community.png", format="png")
+  card_temp.close()
+  river_image.close()
+
+
+async def generateHandImage(face_1, suit_1, face_2, suit_2):
+  card1_img = deck_image.crop(await getCoords(face_1, suit_1))
+  card2_img = deck_image.crop(await getCoords(face_2, suit_2))
+
+  card1_img = card1_img.convert("RGBA")
+  card2_img = card2_img.convert("RGBA")
+
+
+  hand = Image.new('RGBA', (285, 395), (0,0,0, 0))
+  hand.paste(card1_img,(0,0), mask=card1_img)
+  hand.paste(card2_img, (60, 80),mask=card2_img)
+  hand.save("player_hand.png", format="png")
+  hand.close()
+
+
+@client.command(brief="Used to interact with games (use \"%help game\" for more)", description="Poker Actions:\n\nStart: The owner of the game can use this to start the game.\nCheck: Passes your turn.\nRaise: Raises the bet of the current turn. Everyone must pay this amount to keep playing. Use \"%game raise <amount>\".\nCall : Allows you to pay for the previous bet or blind to keep playing.\nFold : Give up on the current round.\nPot  : Display the pot of the current round.\nHand : Display your current hand.\nRiver: Display the current community cards.")
 async def game(ctx, action : str, amount : int=0):
   action = action.lower()
   member = str(ctx.message.author.id)
@@ -142,6 +180,7 @@ async def game(ctx, action : str, amount : int=0):
   for member_id in games[game]['members']:
     player_obj = await client.fetch_user(int(member_id))
     members_obj.append(player_obj)
+  # retrieve variables
   game_name = games[game_id]['game']
   members_array = list(games[game_id]['members'].keys())
   member_name = ctx.message.author.name
@@ -199,8 +238,17 @@ async def game(ctx, action : str, amount : int=0):
             community += card + ", "
           else:
             community += "and a " + card + "!"
+        await getCommunity(games[game_id]['community_cards'])
+        current_turn_name = await client.fetch_user(int(members_array[turn]))
+        # send message to each player
         for player in members_obj:
+          file_com = discord.File("community.png", filename="image.png")
+          embed = discord.Embed(title="Community cards", color=discord.Color.dark_red())
+          embed.set_image(url="attachment://image.png")
           await player.send(f"**The community cards are {community}**")
+          await player.send(file=file_com, embed=embed)
+          await player.send(f"*It is now {current_turn_name.name}'s turn*")
+          
       
       # normal round with card draw
       elif not end:
@@ -208,8 +256,21 @@ async def game(ctx, action : str, amount : int=0):
         games[game_id]['community_cards'].append(games[game_id]['deck'][index])
         card = games[game_id]['deck'].pop(index)
         card = await return_card_name(card)
+        current_turn_name = await client.fetch_user(int(members_array[turn]))
+
+        #file_img = discord.File("player_hand.png", filename="image.png")
+        #embed = discord.Embed(title="Your hand", color=discord.Color.dark_red())
+        #embed.set_image(url="attachment://image.png")
+        await getCommunity(games[game_id]['community_cards'])
+        # send message to each player
         for player in members_obj:
+          file_img2 = discord.File("community.png", filename="image.png")
+          embed2 = discord.Embed(title="Community cards", color=discord.Color.dark_red())
+          embed2.set_image(url="attachment://image.png")
           await player.send(f"**The {card} was drawn for the community cards**")
+          #await player.send(file=file_img, embed=embed)
+          await player.send(file=file_img2, embed=embed2)
+          await player.send(f"*It is now {current_turn_name.name}'s turn*")
 
       # end of game sequence
       else:
@@ -220,7 +281,7 @@ async def game(ctx, action : str, amount : int=0):
           if games[game_id]['members'][player]['hand'] != []:
             new_score = (player, await hand_value(games[game_id]['members'][player]['hand'], games[game_id]['community_cards']))
             scores.append(new_score)
-        max_score = str(max(scores)[1])
+        max_score = str(max(scores, key=itemgetter(1))[1])
         winners = []
         # will create list of all winners
         for index,score in enumerate(scores):
@@ -310,22 +371,76 @@ async def game(ctx, action : str, amount : int=0):
           # give players starting hand card1
           index = await random_card(games[game_id]['deck'])
           games[game_id]['members'][str(player.id)]['hand'].append(games[game_id]['deck'][index])
-          card = games[game_id]['deck'].pop(index)
-          card1 = await return_card_name(card)
+          card1 = games[game_id]['deck'].pop(index)
+          card1_name = await return_card_name(card1)
 
           # give players starting hand card2
           index = await random_card(games[game_id]['deck'])
           games[game_id]['members'][str(player.id)]['hand'].append(games[game_id]['deck'][index])
-          card = games[game_id]['deck'].pop(index)
-          card2 = await return_card_name(card)
-          await player.send(f"**You drew a {card1} and a {card2}**!")
+          card2 = games[game_id]['deck'].pop(index)
+          card2_name = await return_card_name(card2)
+          await player.send(f"**You drew a {card1_name} and a {card2_name}!**\n*It is now {members_obj[turn].name}'s turn*")
+
+          # generate image of hand
+          await generateHandImage(int(card1[0:2]), int(card1[2]), int(card2[0:2]), int(card2[2]))
+          file_img = discord.File("player_hand.png", filename="image.png")
+          embed = discord.Embed(title="Your hand", color=discord.Color.dark_red())
+          embed.set_image(url="attachment://image.png")
+          await player.send(file=file_img, embed=embed)
+
         # update hands and deck
       else: await sender.send("*You need at least 2 players in the lobby or the game has already started*")
     else: await sender.send(f"*Only the owner of the game ({owner.name}) can do that*")
+  
+  elif action == 'pot':
+    await sender.send(f"*The current pot is ${games[game_id]['pot']}*")
+  
+  elif action == 'hand' and started:
+    if games[game_id]['members'][member]['hand'] != []:
+      card1 = games[game_id]['members'][member]['hand'][0]
+      card2 = games[game_id]['members'][member]['hand'][1]
+      card1_name = await return_card_name(card1)
+      card2_name = await return_card_name(card2)
+      await generateHandImage(int(card1[0:2]), int(card1[2]), int(card2[0:2]), int(card2[2]))
+      hand_img = discord.File("player_hand.png", filename="image.png")
+      embed = discord.Embed(title="Your hand", color=discord.Color.dark_red())
+      embed.set_image(url="attachment://image.png")
+      await sender.send(f"**You have a {card1_name} and a {card2_name}.**")
+      await sender.send(file=hand_img, embed=embed)
+    else:
+      await sender.send(f"*Your hand is empty*")
+  
+  elif action == 'river' and started:
+    river = games[game_id]['community_cards']
+    if river != []:
+      community_cards = []
+      for card in river:
+        card_name = await return_card_name(card)
+        community_cards.append(card_name)
+
+        community = ""
+      for card_num, card in enumerate(community_cards):
+        if card_num != len(community_cards) - 1:
+          community += card + ", "
+        else:
+          community += "and a " + card
+      await sender.send(f"**The community cards are {community}.**")
+    else: await sender.send("*There are no community cards*")
+  
+  elif action == 'end':
+    if member == members_array[0] and not started:
+      for player in members_obj:
+        await player.send(f"***{member_name} has ended the game***")
+      games.pop(game_id)
+    elif member != members_array[0]:
+      await sender.send(f"*Only the owner of the game ({owner.name}) can do that before the round has started*")
+    else:
+      await sender.send("*You can only end the game before the round has started*")
+    
   # checks if it is member's turn
   elif member != members_array[int(games[game_id]['turn'])] and started:
     current_turn_name = await client.fetch_user(int(members_array[int(games[game_id]['turn'])]))
-    await sender.send(f"*It is {current_turn_name.name}'s turn*")
+    await sender.send(f"*You can't do that because it is currently {current_turn_name.name}'s turn*")
 
   elif action == 'raise' and started:
     last_raise = int(games[game_id]['last_raise'])
@@ -369,7 +484,7 @@ async def game(ctx, action : str, amount : int=0):
       games[game_id]['members'][member]['debt'] = '0'
       games[game_id]['pot'] = str(curr_pot + member_debt)
       # subtract from bank
-      bank[member][0] = str(member_money - amount)
+      bank[member][0] = str(member_money - member_debt)
       # send update to players
       for player in members_obj:
         await player.send(f"*{member_name} has called the bet of ${member_debt}*")
@@ -389,16 +504,6 @@ async def game(ctx, action : str, amount : int=0):
       await next_turn()
     else:
       await sender.send(f"*You must call the ${member_debt} to continue. Use '%game call' to call.*")
-  
-  elif action == 'end':
-    if member == members_array[0] and not started:
-      for player in members_obj:
-        await player.send(f"***{member_name} has ended the game***")
-      games.pop(game_id)
-    elif member != members_array[0]:
-      await sender.send(f"*Only the owner of the game ({owner.name}) can do that before the round has started*")
-    else:
-      await sender.send("*You can only end the game before the round has started*")
 
   elif action == 'fold' and started:
     for player in members_obj:
@@ -406,6 +511,7 @@ async def game(ctx, action : str, amount : int=0):
     games[game_id]['members'][member]['hand'] = []
     games[game_id]['members'][member]['status'] = 'Fold'
     await next_turn()
+
   # dump new info
   elif not started:
     await sender.send("*Game hasn't started*")
@@ -870,7 +976,7 @@ async def on_raw_reaction_add(payload):
       guild_name = all_lfg[message_id]['guild_name']
       goal_time = str(all_lfg[message_id]['goal_time'])
       members_list = all_lfg[message_id]['members']
-      scheduled = bool(all_lfg[message_id]['scheduled'])
+      scheduled = True if all_lfg[message_id]['scheduled'] == 'True' else False
       members = []
       # retrieve member objects from member ids
       for player_id in members_list:
@@ -909,7 +1015,9 @@ async def on_raw_reaction_add(payload):
             print(f"Goal has been reached for {goal} in {guild_name}.")
             if not scheduled:          
               for person in members:
-                await person.send(f"Your group for {lfg_name} in {guild_name} is ready!")
+                await person.send(f"**Your group for {lfg_name} in {guild_name} is ready!\nPeople playing:\n{send_out}**")
+              await msg.delete()
+              await in_embed.delete()
               all_lfg.pop(message_id)
               print("Removed lfg from database.")
           #not met goal
@@ -921,7 +1029,8 @@ async def on_raw_reaction_add(payload):
             json.dump(all_lfg, file)
         else:
           print(payload.member.name + " already in queue.")
-        await msg.remove_reaction("✅", payload.member)
+        if count != goal:
+          await msg.remove_reaction("✅", payload.member)
 
         #remove from lfg
       elif str(payload.emoji.name) == "🚫":
