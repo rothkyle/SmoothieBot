@@ -209,12 +209,15 @@ async def game(ctx, action : str, amount : int=0):
     total_players = len(members_array)
     end = True if len(games[game_id]['community_cards']) == 5  and draw else False
     total_playing = 0
+    curr_pot = int(games[game_id]['pot'])
+    show_hand = True
     for player in members_array:
       if games[game_id]['members'][player]['hand'] != []:
         total_playing += 1
     if total_playing == 1:
       end = True
       draw = True
+      show_hand = False
       games[game_id]['community_cards'] = ["064", "084", "094", "104", "114"]
     start = int(games[game_id]['start'])
     if games[game_id]['loop_count'] == '2':
@@ -222,6 +225,7 @@ async def game(ctx, action : str, amount : int=0):
       draw = True
     # new round
     if draw:
+      games
       # pick community cards
       if games[game_id]['community_cards'] == []:
         community_cards = []
@@ -328,6 +332,11 @@ async def game(ctx, action : str, amount : int=0):
             await player.send(f"**Game over! Not enough people to play.**")
         if total_players < 2:
           games.pop(game_id)
+        with open("games.json","w") as file:
+          json.dump(games, file)
+        with open("bank.json","w") as file:
+          json.dump(bank, file)
+        return
     else:
       #if games[game_id]['start'] == str(turn)
       #  games[game_id]['loop_count'] = str(int(games[game_id]['loop_count']) + 1)
@@ -413,6 +422,10 @@ async def game(ctx, action : str, amount : int=0):
   elif action == 'river' and started:
     river = games[game_id]['community_cards']
     if river != []:
+      await getCommunity(river)
+      file_com = discord.File("community.png", filename="image.png")
+      embed = discord.Embed(title="Community cards", color=discord.Color.dark_red())
+      embed.set_image(url="attachment://image.png")
       community_cards = []
       for card in river:
         card_name = await return_card_name(card)
@@ -425,6 +438,7 @@ async def game(ctx, action : str, amount : int=0):
         else:
           community += "and a " + card
       await sender.send(f"**The community cards are {community}.**")
+      await player.send(file=file_com, embed=embed)
     else: await sender.send("*There are no community cards*")
   
   elif action == 'end':
@@ -892,7 +906,7 @@ async def flip(ctx):
 
 
 @client.command(brief="Create a customizable 'looking for group' message", description="Create a customizable 'looking for group' message. First type '%lfg' followed by the number of people needed, the event name of the lfg, the number of hours you want the lfg to last, and true/false if the lfg is scheduled or not. Scheduled means that at the end of the inputted time, the message will send. If it isn't scheduled, the notification message will send immediately when the goal is met. The number of hours and scheduled are set to 12 and false respectively by default, so these are not necessary to create an lfg message.")
-async def lfg(ctx, goal : str, game : str, numHours : float=2, scheduled: bool=False):
+async def lfg(ctx, game : str, goal : str, numHours : float=2, scheduled: bool=False):
   if numHours <= 200.00 and numHours > 0.00 and int(goal) > 1:
     original_game = game
     if len(game) == 22:
@@ -1151,7 +1165,7 @@ async def check():
         elif member.id not in repeat_members:
           #add money to existing members
           money = int(bank[str(member.id)][0])
-          money += 100
+          money += 10
           bank[str(member.id)][0] = str(money)
         repeat_members.append(member.id)
     
