@@ -15,6 +15,7 @@ import validators
 from pokereval.card import Card
 from operator import itemgetter
 from pokereval.hand_evaluator import HandEvaluator
+from riotwatcher import LolWatcher, ApiError
 
 streams = os.getenv('streams')
 random.seed()
@@ -22,6 +23,8 @@ intents = discord.Intents.default()
 intents.members = True
 client = commands.Bot(command_prefix="%", intents = intents)
 deck_image = Image.open('deck.png')
+riot_key = 'RGAPI-d1468076-50f1-4e38-85f8-d3a7a4471d63'
+lol_watcher = LolWatcher(riot_key)
 
 
 @client.event
@@ -30,6 +33,41 @@ async def on_ready():
   #await check()
   asyncio.create_task(check())
   #asyncio.create_task(currency_update())
+
+
+@client.command()
+async def lolstat(ctx, summoner_name : str):
+  # attempt to retrieve summoner from name
+  try:
+    summoner = lol_watcher.summoner.by_name('na1', summoner_name)
+  except ApiError as err:
+    if err.response.status_code == 429:
+      print('We should retry in {} seconds.'.format(err.headers['Retry-After']))
+      print('future requests wait until the retry-after time passes')
+    elif err.response.status_code == 404:
+      print('Summoner with that ridiculous name not found.')
+      await ctx.send("That summoner name doesn't exist")
+    else:
+      raise
+    return
+  # check if summoner plays ranked solo
+  stats = lol_watcher.league.by_summoner('na1', summoner['id'])
+  ranked_solo = False
+  if stats != []:
+    for index, mode in enumerate(stats):
+      if mode['queueType'] == 'RANKED_SOLO_5x5':
+        ranked_solo = True
+        mode_index = index
+        break
+  # display stats from ranked solo
+  if ranked_solo:
+    solo = stats[mode_index]
+    total_games = float(solo['wins']) + float(solo['losses'])
+    winrate = round(((float(solo['wins']) / total_games) * 100),2)
+    name = solo['summonerName']
+    rank = solo['tier'].title() + " " + solo['rank']
+    await ctx.send(f"{name} is ranked {rank} with {winrate}% winrate")
+  else: await ctx.send("**This summoner doesn't play ranked solo.**")
 
 
 async def in_bank(member):
