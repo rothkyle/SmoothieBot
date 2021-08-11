@@ -16,6 +16,8 @@ from pokereval.card import Card
 from operator import itemgetter
 from pokereval.hand_evaluator import HandEvaluator
 from riotwatcher import LolWatcher, ApiError
+import cassiopeia as lol
+from cassiopeia import Summoner
 
 streams = os.getenv('streams')
 random.seed()
@@ -23,7 +25,9 @@ intents = discord.Intents.default()
 intents.members = True
 client = commands.Bot(command_prefix="%", intents = intents)
 deck_image = Image.open('deck.png')
-riot_key = 'RGAPI-d1468076-50f1-4e38-85f8-d3a7a4471d63'
+riot_key = os.getenv('riot_key')
+lol.set_riot_api_key(riot_key)
+lol.set_default_region("NA")
 lol_watcher = LolWatcher(riot_key)
 
 
@@ -33,6 +37,33 @@ async def on_ready():
   #await check()
   asyncio.create_task(check())
   #asyncio.create_task(currency_update())
+
+
+@client.command()
+async def test(ctx):
+  denver = pytz.timezone('America/Denver')
+  denver_time = datetime.now(denver)
+  goal_time = denver_time + timedelta(hours=float(2))
+  goalString = str(goal_time)
+  time_left = str(goal_time-denver_time)[0:19]
+  # write formatted goal to file
+  formattedGoal = goalString[0:19]
+  #embed
+  embed = discord.Embed(title=("LFG for game"), description="People playing: 1/5", color=discord.Color.blue())
+  embed.set_author(name=ctx.message.author.display_name, icon_url=ctx.message.author.avatar_url)
+  embed.set_thumbnail(url="https://scontent.fapa1-2.fna.fbcdn.net/v/t1.6435-9/116792312_352845929450554_3400059762308528682_n.jpg?_nc_cat=1&ccb=1-4&_nc_sid=973b4a&_nc_ohc=2fZ6SRkas4QAX_um2IZ&_nc_ht=scontent.fapa1-2.fna&oh=a3f8f42a975dbc4e0447e6f121b8e1c5&oe=613A4BE6")
+  embed.add_field(name="Players:", value=ctx.message.author.mention, inline=False)
+  embed.add_field(name="Goal Time:", value=formattedGoal, inline=True)
+  embed.add_field(name="Time Remaining:", value=time_left, inline=True)
+  embed.set_footer(text="React to this message with ✅ and 🚫 to join or leave this lfg.")
+  await ctx.send(embed=embed)
+
+
+@client.command()
+async def zoop(ctx, summoner:str):
+  player = Summoner(name=summoner)
+  good_with = player.champion_masteries.filter(lambda cm: cm.level >= 6)
+  print([cm.champion.name for cm in good_with])
 
 
 @client.command()
@@ -52,6 +83,20 @@ async def lolstat(ctx, summoner_name : str):
     return
   # check if summoner plays ranked solo
   stats = lol_watcher.league.by_summoner('na1', summoner['id'])
+  #matchlist = lol_watcher.match_v5.matchlist_by_puuid('AMERICAS', summoner['puuid'])
+  #match = lol_watcher.match_v5.by_id('AMERICAS', matchlist[0])
+  #player = lol_watcher.summoner.by_puuid('na1', player_id)['name']
+  try:
+    curr_match = lol_watcher.spectator.by_summoner('na1', summoner['id'])
+    player_list = []
+    for player_id in curr_match['participants']:
+      player_list.append(player_id['summonerName'])
+    length = float(curr_match['gameLength'])/60.00
+    #print(curr_match)
+    print(f"{length} minutes")
+    print(player_list)
+  except:
+    pass
   ranked_solo = False
   if stats != []:
     for index, mode in enumerate(stats):
@@ -66,8 +111,8 @@ async def lolstat(ctx, summoner_name : str):
     winrate = round(((float(solo['wins']) / total_games) * 100),2)
     name = solo['summonerName']
     rank = solo['tier'].title() + " " + solo['rank']
-    await ctx.send(f"{name} is ranked {rank} with {winrate}% winrate")
-  else: await ctx.send("**This summoner doesn't play ranked solo.**")
+    await ctx.send(f"{name} is ranked {rank} with a {winrate}% winrate in Solo/Duo")
+  else: await ctx.send("**This summoner doesn't play Ranked Solo/Duo.**")
 
 
 async def in_bank(member):
@@ -159,6 +204,7 @@ async def getCoords(face_num,suit_num):
     face_num = 1
   coords = (((face_num-1)*225), ((suit_num-1)*315),((face_num)*225), (((suit_num))*315))
   return coords
+
 
 async def getCommunity(cards):
   height = 315
@@ -573,20 +619,6 @@ async def game(ctx, action : str, amount : int=0):
     json.dump(games, file)
   with open("bank.json","w") as file:
     json.dump(bank, file)
-
-  
-
-
-@client.command()
-async def test(ctx):
-  embed = discord.Embed(title="Title", description="Desc", color=discord.Color.gold()) #creates embed
-  file = discord.File("owen.png", filename="image.png")
-  embed.set_image(url="attachment://image.png")
-  await ctx.send(file=file, embed=embed)
-  hand = [Card(14,1), Card(14,4)]
-  board = []
-  score = HandEvaluator.evaluate_hand(hand, board)
-  await ctx.send(score)
 
 
 @client.command(brief="Create a poker game")
