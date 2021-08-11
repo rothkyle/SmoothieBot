@@ -44,18 +44,18 @@ async def test(ctx):
   denver = pytz.timezone('America/Denver')
   denver_time = datetime.now(denver)
   goal_time = denver_time + timedelta(hours=float(2))
-  goalString = str(goal_time)
+  goal_string = str(goal_time)
   time_left = str(goal_time-denver_time)[0:19]
   # write formatted goal to file
-  formattedGoal = goalString[0:19]
+  formattedGoal = goal_string[0:19]
   #embed
   embed = discord.Embed(title=("LFG for game"), description="People playing: 1/5", color=discord.Color.blue())
   embed.set_author(name=ctx.message.author.display_name, icon_url=ctx.message.author.avatar_url)
-  embed.set_thumbnail(url="https://scontent.fapa1-2.fna.fbcdn.net/v/t1.6435-9/116792312_352845929450554_3400059762308528682_n.jpg?_nc_cat=1&ccb=1-4&_nc_sid=973b4a&_nc_ohc=2fZ6SRkas4QAX_um2IZ&_nc_ht=scontent.fapa1-2.fna&oh=a3f8f42a975dbc4e0447e6f121b8e1c5&oe=613A4BE6")
+  embed.set_thumbnail(url="https://lfgroup.gg/wp-content/uploads/2020/05/lfg-banner-transparent.png")
   embed.add_field(name="Players:", value=ctx.message.author.mention, inline=False)
   embed.add_field(name="Goal Time:", value=formattedGoal, inline=True)
   embed.add_field(name="Time Remaining:", value=time_left, inline=True)
-  embed.set_footer(text="React to this message with ✅ and 🚫 to join or leave this lfg.")
+  embed.set_footer(text="React to this message with ✅ or 🚫 to join or leave this lfg.")
   await ctx.send(embed=embed)
 
 
@@ -113,6 +113,24 @@ async def lolstat(ctx, summoner_name : str):
     rank = solo['tier'].title() + " " + solo['rank']
     await ctx.send(f"{name} is ranked {rank} with a {winrate}% winrate in Solo/Duo")
   else: await ctx.send("**This summoner doesn't play Ranked Solo/Duo.**")
+
+
+async def get_thumbnail(title : str):
+  title = title.lower()
+  urls = {
+    "valorant": "https://scontent.fapa1-2.fna.fbcdn.net/v/t1.6435-9/116792312_352845929450554_3400059762308528682_n.jpg?_nc_cat=1&ccb=1-4&_nc_sid=973b4a&_nc_ohc=2fZ6SRkas4QAX_um2IZ&_nc_ht=scontent.fapa1-2.fna&oh=a3f8f42a975dbc4e0447e6f121b8e1c5&oe=613A4BE6",
+    "val":"https://scontent.fapa1-2.fna.fbcdn.net/v/t1.6435-9/116792312_352845929450554_3400059762308528682_n.jpg?_nc_cat=1&ccb=1-4&_nc_sid=973b4a&_nc_ohc=2fZ6SRkas4QAX_um2IZ&_nc_ht=scontent.fapa1-2.fna&oh=a3f8f42a975dbc4e0447e6f121b8e1c5&oe=613A4BE6",
+    "valo":"https://scontent.fapa1-2.fna.fbcdn.net/v/t1.6435-9/116792312_352845929450554_3400059762308528682_n.jpg?_nc_cat=1&ccb=1-4&_nc_sid=973b4a&_nc_ohc=2fZ6SRkas4QAX_um2IZ&_nc_ht=scontent.fapa1-2.fna&oh=a3f8f42a975dbc4e0447e6f121b8e1c5&oe=613A4BE6",
+    "ape leg":"https://emoji.gg/assets/emoji/1650_apex_legends.png",
+    "ape":"https://emoji.gg/assets/emoji/1650_apex_legends.png",
+    "apex":"https://emoji.gg/assets/emoji/1650_apex_legends.png",
+    "apex legends":"https://emoji.gg/assets/emoji/1650_apex_legends.png",
+    "league":"https://styles.redditmedia.com/t5_2rfxx/styles/communityIcon_9yj66cjf8oq61.png",
+    "leg":"https://styles.redditmedia.com/t5_2rfxx/styles/communityIcon_9yj66cjf8oq61.png",
+    "league of leg":"https://styles.redditmedia.com/t5_2rfxx/styles/communityIcon_9yj66cjf8oq61.png",
+  }
+  if title in urls: return urls[title]
+  else: return "https://lfgroup.gg/wp-content/uploads/2020/05/lfg-banner-transparent.png"
 
 
 async def in_bank(member):
@@ -653,10 +671,10 @@ async def poker(ctx):
       await in_embed.add_reaction("✅")
       denver = pytz.timezone('America/Denver')
       denver_time = datetime.now(denver)
-      goalTime = denver_time + timedelta(hours=2)
-      goalString = str(goalTime)
+      goal_time = denver_time + timedelta(hours=2)
+      goal_string = str(goal_time)
       # write formatted goal to file
-      formattedGoal = goalString[0:19]
+      formattedGoal = goal_string[0:19]
       # information about the game
       new_poker = {
         'game': 'poker',
@@ -990,26 +1008,28 @@ async def lfg(ctx, game : str, goal : str, numHours : float=2, scheduled: bool=F
     # get current time
     denver = pytz.timezone('America/Denver')
     denver_time = datetime.now(denver)
-    goalTime = denver_time + timedelta(hours=float(numHours))
-    goalString = str(goalTime)
+    goal_time = denver_time + timedelta(hours=float(numHours))
+    time_left = str(goal_time-denver_time)[0:19]
+    goal_string = str(goal_time)
     # write formatted goal to file
-    formattedGoal = goalString[0:19]
+    formattedGoal = goal_string[0:19]
     #embed
-    embed = discord.Embed(title=("LFG for " + game), description="People playing: 1", color=discord.Color.blue())
-    embed.add_field(name="Players:", value=ctx.message.author.mention, inline=True)
-    embed.add_field(name="Goal Time:", value=formattedGoal, inline=False)
-    message = await ctx.send("**React to this message if you want to play " + original_game + ". We need " + goal + " people. React with ✅ to join and 🚫 to leave.**")
+    embed = discord.Embed(title=(f"LFG for {game}"), description=f"People playing: 1/{goal}", color=discord.Color.green())
+    #embed.set_author(name=ctx.message.author.display_name, icon_url=ctx.message.author.avatar_url)
+    embed.set_thumbnail(url=await get_thumbnail(game))
+    embed.add_field(name="Players:", value=ctx.message.author.mention, inline=False)
+    embed.add_field(name="Goal Time:", value=formattedGoal, inline=True)
+    embed.add_field(name="Time Remaining:", value=time_left, inline=True)
+    embed.set_footer(text="React to this message with ✅ or 🚫 to join/leave this lfg.")
     in_embed = await ctx.send(embed=embed)
-    messageid = message.id
-    channel_id = message.channel.id
+    channel_id = ctx.message.channel.id
     embed_id = in_embed.id
     guild_id = ctx.guild.id
     guild_name = ctx.guild
-    await message.add_reaction("✅")
-    await message.add_reaction("🚫")
+    await in_embed.add_reaction("✅")
+    await in_embed.add_reaction("🚫")
     #store lfg message information in dict then json
     lfg_dict = {
-      'message_id':str(messageid),
       'channel_id':str(channel_id),
       'embed_id':str(embed_id),
       'lfg_name':str(game),
@@ -1017,6 +1037,7 @@ async def lfg(ctx, game : str, goal : str, numHours : float=2, scheduled: bool=F
       'guild_id':str(guild_id),
       'guild_name':str(guild_name),
       'goal_time':str(formattedGoal),
+      'time_left':time_left,
       'members':[str(ctx.message.author.id)],
       'scheduled':str(scheduled)
     }
@@ -1028,12 +1049,12 @@ async def lfg(ctx, game : str, goal : str, numHours : float=2, scheduled: bool=F
         all_lfg = dict()
     # update lfg json
 
-    all_lfg[str(messageid)] = lfg_dict
+    all_lfg[str(embed_id)] = lfg_dict
 
     # write to json file
     with open("lfg.json", "w") as file:
       json.dump(all_lfg, file)
-    print("Created counter for " + game + " in " + message.guild.name)
+    print("Created counter for " + game + " in " + ctx.message.guild.name)
   else:
     if int(goal) < 2:
       await ctx.author.send("You can only create an lfg with a goal of 2 or greater.")
@@ -1053,14 +1074,15 @@ async def on_raw_reaction_add(payload):
     with open("lfg.json", "r") as file:
       all_lfg = json.load(file)
     if message_id in all_lfg:
+      embed_id = message_id
       # retrieve lfg info
-      embed_id = int(all_lfg[message_id]['embed_id'])
-      lfg_name = all_lfg[message_id]['lfg_name']
-      goal = int(all_lfg[message_id]['goal'])
-      guild_name = all_lfg[message_id]['guild_name']
-      goal_time = str(all_lfg[message_id]['goal_time'])
-      members_list = all_lfg[message_id]['members']
-      scheduled = True if all_lfg[message_id]['scheduled'] == 'True' else False
+      lfg_name = all_lfg[embed_id]['lfg_name']
+      goal = int(all_lfg[embed_id]['goal'])
+      guild_name = all_lfg[embed_id]['guild_name']
+      goal_time = str(all_lfg[embed_id]['goal_time'])
+      members_list = all_lfg[embed_id]['members']
+      scheduled = True if all_lfg[embed_id]['scheduled'] == 'True' else False
+      time_left = all_lfg[embed_id]['time_left']
       members = []
       # retrieve member objects from member ids
       for player_id in members_list:
@@ -1071,27 +1093,30 @@ async def on_raw_reaction_add(payload):
       # fetch lfg objects
       channel = client.get_channel(payload.channel_id)
       try:
-        msg = await channel.fetch_message(int(message_id))
+        embed_obj = await channel.fetch_message(int(embed_id))
       except:
         print(f"Message for the {lfg_name} lfg in {guild_name} could not be found.")
-        all_lfg.pop(message_id)
+        all_lfg.pop(embed_id)
         with open("lfg.json", "w") as file:
           json.dump(all_lfg, file)
         return
-      in_embed = await channel.fetch_message(embed_id)
+      in_embed = await channel.fetch_message(int(embed_id))
       send_out = ""
       
       if str(payload.emoji.name) == "✅" and count < goal:
         if member not in members:
-          all_lfg[message_id]['members'].append(str(member.id))
+          all_lfg[embed_id]['members'].append(str(member.id))
           members.append(member)
           count += 1
           for person in members:
             send_out += (person.mention + "\n")
-          des = str("People playing: " + str(count))
-          new_info = discord.Embed(title=("LFG for " + str(lfg_name)), description=des, color=discord.Color.blue())
-          new_info.add_field(name="Players:", value=send_out, inline=True)
-          new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
+          des = f"People playing: {count}/{goal}"
+          new_info = discord.Embed(title=("LFG for " + str(lfg_name)), description=des, color=discord.Color.green())
+          new_info.set_thumbnail(url=await get_thumbnail(lfg_name))
+          new_info.add_field(name="Players:", value=send_out, inline=False)
+          new_info.add_field(name="Goal Time:", value=goal_time, inline=True)
+          new_info.add_field(name="Time Remaining:", value=time_left, inline=True)
+          new_info.set_footer(text="React to this message with ✅ or 🚫 to join/leave this lfg.")
           await in_embed.edit(embed=new_info)
 
           #met goal
@@ -1100,9 +1125,8 @@ async def on_raw_reaction_add(payload):
             if not scheduled:          
               for person in members:
                 await person.send(f"**Your group for {lfg_name} in {guild_name} is ready!\nPeople playing:\n{send_out}**")
-              await msg.delete()
               await in_embed.delete()
-              all_lfg.pop(message_id)
+              all_lfg.pop(embed_id)
               print("Removed lfg from database.")
           #not met goal
           else:
@@ -1114,31 +1138,34 @@ async def on_raw_reaction_add(payload):
         else:
           print(payload.member.name + " already in queue.")
         if count != goal:
-          await msg.remove_reaction("✅", payload.member)
+          await embed_obj.remove_reaction("✅", payload.member)
 
         #remove from lfg
       elif str(payload.emoji.name) == "🚫":
         if member in members:
           count -= 1
           members.remove(member)
-          all_lfg[message_id]['members'].remove(str(member.id))
+          all_lfg[embed_id]['members'].remove(str(member.id))
           print(f"{payload.member} has left the lfg for {lfg_name}.")
-          des = str("People playing: " + str(count))
+          des = f"People playing: {count}/{goal}"
           if members == []:
             send_out = "N/A"
           else:
             for person in members:
               send_out += (person.mention + "\n")
           #embed
-          new_info = discord.Embed(title=("LFG for " + str(lfg_name)), description=des, color=discord.Color.blue())
-          new_info.add_field(name="Players:", value=send_out, inline=True)
-          new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
+          new_info = discord.Embed(title=("LFG for " + str(lfg_name)), description=des, color=discord.Color.green())
+          new_info.set_thumbnail(url=await get_thumbnail(lfg_name))
+          new_info.add_field(name="Players:", value=send_out, inline=False)
+          new_info.add_field(name="Goal Time:", value=goal_time, inline=True)
+          new_info.add_field(name="Time Remaining:", value=time_left, inline=True)
+          new_info.set_footer(text="React to this message with ✅ or 🚫 to join/leave this lfg.")
           await in_embed.edit(embed=new_info)
 
           # dump new info into lfg json
           with open("lfg.json", "w") as file:
             json.dump(all_lfg, file)
-        await msg.remove_reaction("🚫", payload.member)
+        await embed_obj.remove_reaction("🚫", payload.member)
       return
     elif str(payload.emoji.name) == "✅":
       member = str(payload.member.id)
@@ -1252,21 +1279,21 @@ async def check():
   for file in all_lfg:
     if file == "time":
       continue
-    curr_time = all_lfg[file]['goal_time']
-    extracted_new = datetime.strptime(curr_time, "%Y-%m-%d %H:%M:%S")
+    goal_time = all_lfg[file]['goal_time']
+    extracted_new = datetime.strptime(goal_time, "%Y-%m-%d %H:%M:%S")
+    time_left = str(extracted_new-formatted_denver)[0:19]
+    members = all_lfg[file]['members']
+    lfg_name = all_lfg[file]['lfg_name']
+    names = []
     if (formatted_denver >= extracted_new):  # goal time is passed
       print("Deleting file " + file.rstrip('\n')  + " due to time passing")
       # retrieve lfg information
-      lfg_name = all_lfg[file]['lfg_name']
       goal = int(all_lfg[file]['goal'])
       channel = client.get_channel(int(all_lfg[file]['channel_id']))
-      msg = await channel.fetch_message(int(all_lfg[file]['message_id']))
       in_embed = await channel.fetch_message(int(all_lfg[file]['embed_id']))
-      members = all_lfg[file]['members']
       scheduled = True if all_lfg[file]['scheduled'] == 'True' else False
       guild = all_lfg[file]['guild_name']
       count = len(members)
-      names = []
       send_out = ""
       # create message send out
       for player_id in members:
@@ -1278,7 +1305,6 @@ async def check():
         names.append(member_obj)
       # delete unscheduled message but save scheduled message
       if not scheduled:
-        await msg.delete()
         await in_embed.delete()
       else:
         if names == []:
@@ -1289,11 +1315,39 @@ async def check():
         # update embed
         des = str("People playing: " + str(count))
         new_info = discord.Embed(title=("LFG for " + str(lfg_name)), description=des, color=discord.Color.red())
+        new_info.set_thumbnail(url=await get_thumbnail(lfg_name))
         new_info.add_field(name="Players:", value=send_out, inline=True)
         new_info.add_field(name="Goal Time:", value="Times up!", inline=False)
+        new_info.add_field(name="Time Remaining:", value="0", inline=True)
+        new_info.set_footer(text="LFG has ended.")
         await in_embed.edit(embed=new_info)
       # queue file for deletion
       to_delete.append(file)
+    # update time in lfg time left
+    else:
+      count = len(members)
+      send_out = ""
+      names = []
+      channel = client.get_channel(int(all_lfg[file]['channel_id']))
+      in_embed = await channel.fetch_message(int(all_lfg[file]['embed_id']))
+      for player_id in members:
+        member_obj = await client.fetch_user(int(player_id))
+        names.append(member_obj)
+      if names == []:
+        send_out = "N/A"
+      else:
+        for member in names:
+          send_out += (member.mention + "\n")
+      des = str("People playing: " + str(count))
+      new_info = discord.Embed(title=("LFG for " + str(lfg_name)), description=des, color=discord.Color.green())
+      new_info.set_thumbnail(url=await get_thumbnail(lfg_name))
+      new_info.add_field(name="Players:", value=send_out, inline=False)
+      new_info.add_field(name="Goal Time:", value=goal_time, inline=True)
+      new_info.add_field(name="Time Remaining:", value=time_left, inline=True)
+      new_info.set_footer(text="React to this message with ✅ or 🚫 to join/leave this lfg.")
+      await in_embed.edit(embed=new_info)
+      all_lfg[file]['time_left'] = str(time_left)
+
   for file in to_delete:
     all_lfg.pop(file)
   with open("lfg.json", "w") as file:
