@@ -128,6 +128,12 @@ async def get_thumbnail(title : str):
     "league":"https://styles.redditmedia.com/t5_2rfxx/styles/communityIcon_9yj66cjf8oq61.png",
     "leg":"https://styles.redditmedia.com/t5_2rfxx/styles/communityIcon_9yj66cjf8oq61.png",
     "league of leg":"https://styles.redditmedia.com/t5_2rfxx/styles/communityIcon_9yj66cjf8oq61.png",
+    "rl":"https://logos-world.net/wp-content/uploads/2020/11/Rocket-League-Emblem.png",
+    "rocket":"https://logos-world.net/wp-content/uploads/2020/11/Rocket-League-Emblem.png",
+    "rocket league":"https://logos-world.net/wp-content/uploads/2020/11/Rocket-League-Emblem.png",
+    "split":"https://lookingforclan.com/sites/default/files/styles/icon/public/2021-07/splitgate-logo.png.jpg?itok=Bp6Ul-Q3",
+    "splitgate":"https://lookingforclan.com/sites/default/files/styles/icon/public/2021-07/splitgate-logo.png.jpg?itok=Bp6Ul-Q3",
+    "split gate":"https://lookingforclan.com/sites/default/files/styles/icon/public/2021-07/splitgate-logo.png.jpg?itok=Bp6Ul-Q3"
   }
   if title in urls: return urls[title]
   else: return "https://lfgroup.gg/wp-content/uploads/2020/05/lfg-banner-transparent.png"
@@ -1014,12 +1020,13 @@ async def lfg(ctx, game : str, goal : str, numHours : float=2, scheduled: bool=F
     # write formatted goal to file
     formattedGoal = goal_string[0:19]
     #embed
-    embed = discord.Embed(title=(f"LFG for {game}"), description=f"People playing: 1/{goal}", color=discord.Color.green())
+    embed = discord.Embed(title=(f"LFG: {int(goal) - 1} more needed for {game}"), description=f"People playing: 1/{goal}", color=discord.Color.green())
     #embed.set_author(name=ctx.message.author.display_name, icon_url=ctx.message.author.avatar_url)
     embed.set_thumbnail(url=await get_thumbnail(game))
     embed.add_field(name="Players:", value=ctx.message.author.mention, inline=False)
-    embed.add_field(name="Goal Time:", value=formattedGoal, inline=True)
-    embed.add_field(name="Time Remaining:", value=time_left, inline=True)
+    #embed.add_field(name = chr(173), value = chr(173), inline=False)
+    embed.add_field(name="Ends In:", value=time_left, inline=False)
+    embed.add_field(name="Goal Time:", value=formattedGoal, inline=False)
     embed.set_footer(text="React to this message with ✅ or 🚫 to join/leave this lfg.")
     in_embed = await ctx.send(embed=embed)
     channel_id = ctx.message.channel.id
@@ -1108,14 +1115,15 @@ async def on_raw_reaction_add(payload):
           all_lfg[embed_id]['members'].append(str(member.id))
           members.append(member)
           count += 1
+          remaining = goal - count
           for person in members:
             send_out += (person.mention + "\n")
           des = f"People playing: {count}/{goal}"
-          new_info = discord.Embed(title=("LFG for " + str(lfg_name)), description=des, color=discord.Color.green())
+          new_info = discord.Embed(title=(f"LFG: {remaining} more needed for {lfg_name}"), description=des, color=discord.Color.green())
           new_info.set_thumbnail(url=await get_thumbnail(lfg_name))
           new_info.add_field(name="Players:", value=send_out, inline=False)
-          new_info.add_field(name="Goal Time:", value=goal_time, inline=True)
-          new_info.add_field(name="Time Remaining:", value=time_left, inline=True)
+          new_info.add_field(name="Ends In:", value=time_left, inline=False)
+          new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
           new_info.set_footer(text="React to this message with ✅ or 🚫 to join/leave this lfg.")
           await in_embed.edit(embed=new_info)
 
@@ -1144,6 +1152,7 @@ async def on_raw_reaction_add(payload):
       elif str(payload.emoji.name) == "🚫":
         if member in members:
           count -= 1
+          remaining = goal - count
           members.remove(member)
           all_lfg[embed_id]['members'].remove(str(member.id))
           print(f"{payload.member} has left the lfg for {lfg_name}.")
@@ -1154,11 +1163,11 @@ async def on_raw_reaction_add(payload):
             for person in members:
               send_out += (person.mention + "\n")
           #embed
-          new_info = discord.Embed(title=("LFG for " + str(lfg_name)), description=des, color=discord.Color.green())
+          new_info = discord.Embed(title=f"LFG: {remaining} more needed for {lfg_name}", description=des, color=discord.Color.green())
           new_info.set_thumbnail(url=await get_thumbnail(lfg_name))
           new_info.add_field(name="Players:", value=send_out, inline=False)
-          new_info.add_field(name="Goal Time:", value=goal_time, inline=True)
-          new_info.add_field(name="Time Remaining:", value=time_left, inline=True)
+          new_info.add_field(name="Ends In:", value=time_left, inline=False)
+          new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
           new_info.set_footer(text="React to this message with ✅ or 🚫 to join/leave this lfg.")
           await in_embed.edit(embed=new_info)
 
@@ -1283,17 +1292,18 @@ async def check():
     extracted_new = datetime.strptime(goal_time, "%Y-%m-%d %H:%M:%S")
     time_left = str(extracted_new-formatted_denver)[0:19]
     members = all_lfg[file]['members']
+    count = len(members)
     lfg_name = all_lfg[file]['lfg_name']
+    goal = int(all_lfg[file]['goal'])
+    remaining = goal - count
     names = []
     if (formatted_denver >= extracted_new):  # goal time is passed
       print("Deleting file " + file.rstrip('\n')  + " due to time passing")
       # retrieve lfg information
-      goal = int(all_lfg[file]['goal'])
       channel = client.get_channel(int(all_lfg[file]['channel_id']))
       in_embed = await channel.fetch_message(int(all_lfg[file]['embed_id']))
       scheduled = True if all_lfg[file]['scheduled'] == 'True' else False
       guild = all_lfg[file]['guild_name']
-      count = len(members)
       send_out = ""
       # create message send out
       for player_id in members:
@@ -1314,11 +1324,10 @@ async def check():
             send_out += (member.mention + "\n")
         # update embed
         des = str("People playing: " + str(count))
-        new_info = discord.Embed(title=("LFG for " + str(lfg_name)), description=des, color=discord.Color.red())
+        new_info = discord.Embed(title=f"LFG: {remaining} more needed for {lfg_name}", description=des, color=discord.Color.red())
         new_info.set_thumbnail(url=await get_thumbnail(lfg_name))
-        new_info.add_field(name="Players:", value=send_out, inline=True)
-        new_info.add_field(name="Goal Time:", value="Times up!", inline=False)
-        new_info.add_field(name="Time Remaining:", value="0", inline=True)
+        new_info.add_field(name="Players:", value=send_out, inline=False)
+        new_info.add_field(name="Goal Time:", value=formattedGoal, inline=False)
         new_info.set_footer(text="LFG has ended.")
         await in_embed.edit(embed=new_info)
       # queue file for deletion
@@ -1330,6 +1339,7 @@ async def check():
       names = []
       channel = client.get_channel(int(all_lfg[file]['channel_id']))
       in_embed = await channel.fetch_message(int(all_lfg[file]['embed_id']))
+      goal = all_lfg[file]['goal']
       for player_id in members:
         member_obj = await client.fetch_user(int(player_id))
         names.append(member_obj)
@@ -1338,12 +1348,12 @@ async def check():
       else:
         for member in names:
           send_out += (member.mention + "\n")
-      des = str("People playing: " + str(count))
-      new_info = discord.Embed(title=("LFG for " + str(lfg_name)), description=des, color=discord.Color.green())
+      des = str(f"People playing: {count}/{goal}")
+      new_info = discord.Embed(title=f"LFG: {remaining} more needed for {lfg_name}", description=des, color=discord.Color.green())
       new_info.set_thumbnail(url=await get_thumbnail(lfg_name))
       new_info.add_field(name="Players:", value=send_out, inline=False)
-      new_info.add_field(name="Goal Time:", value=goal_time, inline=True)
-      new_info.add_field(name="Time Remaining:", value=time_left, inline=True)
+      new_info.add_field(name="Ends In:", value=time_left, inline=False)
+      new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
       new_info.set_footer(text="React to this message with ✅ or 🚫 to join/leave this lfg.")
       await in_embed.edit(embed=new_info)
       all_lfg[file]['time_left'] = str(time_left)
