@@ -43,58 +43,68 @@ async def on_ready():
   asyncio.create_task(check())
   #asyncio.create_task(currency_update())
 
-@client.command()
-async def twitch(ctx, username):
+async def twitch_is_online(username):
   url = TWITCH_API_ENDPOINT.format(username)
   reqSession = requests.Session()
   req = reqSession.get(url, headers=TWITCH_HEADERS)
   json_data = req.json()
-  print(json_data)
-  if json_data['data'] == []: return False
-  else: return True
+  return json_data['data']
 
 
 @client.command()
-async def stream(ctx, action, username):
+async def stream(ctx, action, username : str=""):
   if ctx.message.author.guild_permissions.administrator:
     with open("streams.json", "r") as streams_file:
       try:
         streams = json.load(streams_file)
       except:
-        raise ValueError('streams.json empty or cannot be loaded')
+        print('streams.json empty or cannot be loaded')
         streams = dict()
     guild = str(ctx.guild.id)
 
     # set text channel where stream notifs are sent
     if action == 'channel':
-      streams[guild]['channel'] = str(ctx.channel.id)
+      guild_info = {
+        'channel': str(ctx.channel.id),
+        'streamers': {}
+      }
+      streams[guild] = guild_info
       await ctx.send(f"Stream notifications will be sent to **{ctx.channel.name}**")
-      
+    
+    if guild not in streams:
+      await ctx.send("You must set the text channel where notifications will be sent with \"%stream channel\" in the desired text channel.")
+      return
+    
     # add streamer to checker
     elif action == 'add':
-      if guild not in streams:
-        await ctx.send("You must set the text channel where notifications will be sent with \"%stream channel\" in the desired text channel.")
-      elif username in streams[guild]['streamers']:
+      if username in streams[guild]['streamers']:
         await ctx.send("Streamer already added.")
       else:
-        streams[guild]['streamers'][username] = 'offline'
+        streams[guild]['streamers'][username.lower()] = 'offline'
+        await ctx.send(f"**{username}** added")
     
     # print all streamer names
     elif action == 'display':
-      if guild in streams:
-        display_string = ""
-        length = len(streams[guild]['streamers'])
-        for count,name in enumerate(streams[guild]['streamers']):
-          if count == 0:
-            display_string += f"Streamer notifications are set up for "
-          if count == length - 1:
-            display_string += name + "."
-          else:
-            display_string += name + ", "
-        await ctx.send(display_string)
+      display_string = ""
+      length = len(streams[guild]['streamers'])
+      for count,name in enumerate(streams[guild]['streamers']):
+        if count == 0:
+          display_string += f"Streamer notifications are set up for "
+        if count == length - 1:
+          display_string += name + "."
+        else:
+          display_string += name + ", "
+      await ctx.send(display_string)
+    
+    elif action == 'remove':
+      if username in streams[guild]['streamers']:
+        streams[guild]['streamers'].pop(username)
+        await ctx.send(f"{username} has been removed")
       else:
-        await ctx.send("Streamer notifications are not set up for this server. Use \"%stream channel\" to set the text channel for streams notifications.")
-      
+        await ctx.send(f"{username} is not a streamer set up for this server")
+    
+    with open("streams.json", "w") as file:
+      json.dump(streams, file)
   
   else:
     ctx.send("**Only admins can use the \"%stream\" command**")
@@ -1283,6 +1293,49 @@ async def runes(ctx, champion : str, role : str):
 
 
 async def check():
+  denver = pytz.timezone('America/Denver')
+  denver_time = datetime.now(denver)
+  curr_time = str(denver_time.ctime())[0:len(denver_time.ctime()) - 8]
+  length = len(curr_time)
+  hour_int = int(curr_time[11:length - 3])
+  if hour_int >= 12: cycle = " pm"
+  else: cycle = " am"
+  hour_int = hour_int % 12
+  if hour_int == 0: hour_int = 12
+  curr_time = curr_time.replace(curr_time[11:length - 3], str(hour_int), 1)
+  curr_time += cycle
+  with open("streams.json", "r") as file:
+    try:
+      streams = json.load(file)
+    except:
+      print('streams.json empty or cannot be loaded')
+      streams = dict()
+  # check each guild's stream info
+  if streams != {}:
+    for guild in streams:
+      channel = client.get_channel(int(streams[guild]['channel']))
+      # check each streamer's status
+      for streamer in streams[guild]['streamers']:
+        streamer_info = await twitch_is_online(streamer)
+        if streams[guild]['streamers'][streamer] == 'offline' and streamer_info != []:
+          streams[guild]['streamers'][streamer] = 'online'
+          # create embed for stream
+          embed = discord.Embed(title=streamer_info[0]['title'], url=f"https://www.twitch.tv/{streamer}")
+          embed.add_field(name="Playing:", value=f"Game: {streamer_info[0]['game_name']}", inline=True)
+          embed.add_field(name="Started at:", value=curr_time, inline=True)
+          embed.set_author(name=f"{streamer.title()} is now live")
+          pic = streamer_info[0]['thumbnail_url'].replace('{width}', '16000').replace('{height}', '9000')
+          embed.set_image(url=pic)
+          embed.set_footer(text=f"Click the title to watch!")
+          # send out stream update
+          await channel.send(f"@everyone **{streamer.title()} is now live!**")
+          await channel.send(embed=embed)
+        elif streams[guild]['streamers'][streamer] == 'online' and streamer_info == []:
+          streams[guild]['streamers'][streamer] = 'offline'
+  with open("streams.json", "w") as file:
+    json.dump(streams, file)
+          
+
   denver = pytz.timezone('America/Denver')
   denver_time = datetime.now(denver)
   formatted_denver = denver_time.strptime(str(denver_time)[0:19], "%Y-%m-%d %H:%M:%S")
