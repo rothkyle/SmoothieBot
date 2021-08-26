@@ -17,7 +17,6 @@ from operator import itemgetter
 from pokereval.hand_evaluator import HandEvaluator
 from riotwatcher import LolWatcher, ApiError
 import cassiopeia as lol
-from cassiopeia import Summoner
 
 streams = os.getenv('streams')
 random.seed()
@@ -29,8 +28,14 @@ riot_key = os.getenv('riot_key')
 lol.set_riot_api_key(riot_key)
 lol.set_default_region("NA")
 lol_watcher = LolWatcher(riot_key)
-
-
+twitch_client = os.getenv('twitch_client')
+twitch_oauth = os.getenv('twitch_oauth')
+TWITCH_API_ENDPOINT = 'https://api.twitch.tv/helix/streams?user_login={}'
+TWITCH_HEADERS = {
+    'Client-Id': twitch_client,
+    'Authorization': 'Bearer ' + twitch_oauth,
+    'Accept': 'application/vnd.twitchtv.v5+json',
+}
 @client.event
 async def on_ready():
   print("Bot is up and running")
@@ -38,36 +43,68 @@ async def on_ready():
   asyncio.create_task(check())
   #asyncio.create_task(currency_update())
 
-
 @client.command()
-async def test(ctx):
-  denver = pytz.timezone('America/Denver')
-  denver_time = datetime.now(denver)
-  goal_time = denver_time + timedelta(hours=float(2))
-  goal_string = str(goal_time)
-  time_left = str(goal_time-denver_time)[0:19]
-  # write formatted goal to file
-  formattedGoal = goal_string[0:19]
-  #embed
-  embed = discord.Embed(title=("LFG for game"), description="People playing: 1/5", color=discord.Color.blue())
-  embed.set_author(name=ctx.message.author.display_name, icon_url=ctx.message.author.avatar_url)
-  embed.set_thumbnail(url="https://lfgroup.gg/wp-content/uploads/2020/05/lfg-banner-transparent.png")
-  embed.add_field(name="Players:", value=ctx.message.author.mention, inline=False)
-  embed.add_field(name="Goal Time:", value=formattedGoal, inline=True)
-  embed.add_field(name="Time Remaining:", value=time_left, inline=True)
-  embed.set_footer(text="React to this message with ✅ or 🚫 to join or leave this lfg.")
-  await ctx.send(embed=embed)
+async def twitch(ctx, username):
+  url = TWITCH_API_ENDPOINT.format(username)
+  reqSession = requests.Session()
+  req = reqSession.get(url, headers=TWITCH_HEADERS)
+  json_data = req.json()
+  print(json_data)
+  if json_data['data'] == []: return False
+  else: return True
 
 
 @client.command()
-async def zoop(ctx, summoner:str):
-  player = Summoner(name=summoner)
-  good_with = player.champion_masteries.filter(lambda cm: cm.level >= 6)
-  print([cm.champion.name for cm in good_with])
+async def stream(ctx, action, username):
+  if ctx.message.author.guild_permissions.administrator:
+    with open("streams.json", "r") as streams_file:
+      try:
+        streams = json.load(streams_file)
+      except:
+        raise ValueError('streams.json empty or cannot be loaded')
+        streams = dict()
+    guild = str(ctx.guild.id)
+
+    # set text channel where stream notifs are sent
+    if action == 'channel':
+      streams[guild]['channel'] = str(ctx.channel.id)
+      await ctx.send(f"Stream notifications will be sent to **{ctx.channel.name}**")
+      
+    # add streamer to checker
+    elif action == 'add':
+      if guild not in streams:
+        await ctx.send("You must set the text channel where notifications will be sent with \"%stream channel\" in the desired text channel.")
+      elif username in streams[guild]['streamers']:
+        await ctx.send("Streamer already added.")
+      else:
+        streams[guild]['streamers'][username] = 'offline'
+    
+    # print all streamer names
+    elif action == 'display':
+      if guild in streams:
+        display_string = ""
+        length = len(streams[guild]['streamers'])
+        for count,name in enumerate(streams[guild]['streamers']):
+          if count == 0:
+            display_string += f"Streamer notifications are set up for "
+          if count == length - 1:
+            display_string += name + "."
+          else:
+            display_string += name + ", "
+        await ctx.send(display_string)
+      else:
+        await ctx.send("Streamer notifications are not set up for this server. Use \"%stream channel\" to set the text channel for streams notifications.")
+      
+  
+  else:
+    ctx.send("**Only admins can use the \"%stream\" command**")
+      
+    
 
 
-@client.command()
-async def lolstat(ctx, summoner_name : str):
+
+@client.command(brief="Get stats for a League of Legends player")
+async def lolstat(ctx, *, summoner_name : str):
   # attempt to retrieve summoner from name
   try:
     summoner = lol_watcher.summoner.by_name('na1', summoner_name)
@@ -128,6 +165,7 @@ async def get_thumbnail(title : str):
     "league":"https://styles.redditmedia.com/t5_2rfxx/styles/communityIcon_9yj66cjf8oq61.png",
     "leg":"https://styles.redditmedia.com/t5_2rfxx/styles/communityIcon_9yj66cjf8oq61.png",
     "league of leg":"https://styles.redditmedia.com/t5_2rfxx/styles/communityIcon_9yj66cjf8oq61.png",
+    "5v5":"https://styles.redditmedia.com/t5_2rfxx/styles/communityIcon_9yj66cjf8oq61.png",
     "rl":"https://logos-world.net/wp-content/uploads/2020/11/Rocket-League-Emblem.png",
     "rocket":"https://logos-world.net/wp-content/uploads/2020/11/Rocket-League-Emblem.png",
     "rocket league":"https://logos-world.net/wp-content/uploads/2020/11/Rocket-League-Emblem.png",
@@ -546,7 +584,7 @@ async def game(ctx, action : str, amount : int=0):
         else:
           community += "and a " + card
       await sender.send(f"**The community cards are {community}.**")
-      await player.send(file=file_com, embed=embed)
+      await sender.send(file=file_com, embed=embed)
     else: await sender.send("*There are no community cards*")
   
   elif action == 'end':
@@ -704,7 +742,7 @@ async def poker(ctx):
       await ctx.send("**You need 100 or more credits to create a poker game.**")
   else:
     await ctx.send("**You dont have money set up! Every hour money is updated and your bank account will be created.**")
-    
+
 
 @client.command(brief="Returns your total money")
 async def bank(ctx):
@@ -732,30 +770,33 @@ async def welcomehere(ctx):
       except:
         welcome = dict()
     #set channel id of server
-    welcome[str(ctx.guild.id)] = [str(ctx.channel.id)]
+    if str(ctx.guild.id) not in welcome:
+      await ctx.send(f"**Welcome channel set to {ctx.channel.name}**")
+      welcome[str(ctx.guild.id)] = [str(ctx.channel.id)]
+    else:
+      await ctx.send(f"**{ctx.channel.name} is already the welcome channel**")
     
     with open("welcome.json", "w") as file:
       json.dump(welcome, file)
   else:
+    await ctx.author.send("You don't have enough permissions to do that.")
     try:
       await ctx.message.delete()
     except:
       print("Not enough permissions to delete messages")
-    await ctx.author.send("You don't have enough permissions to do that.")
 
 
-@client.command(brief="Add a welcome message to the server", description = "Multiple word messages and links are supported. Using '=' in the message will @ the person who joined.")
+@client.command(brief="Add a welcome message to the server", description = "Multiple word messages and links are supported. Using a \"=\" in the message will @ the person who joined.")
 async def addwelcome(ctx, *, message):
   if ctx.message.author.guild_permissions.administrator:
     with open("welcome.json", "r") as file:
-        try:
-          welcome = json.load(file)
-        except:
-          welcome = dict()
-    
+      try:
+        welcome = json.load(file)
+      except:
+        welcome = dict()
     guild_id = str(ctx.guild.id)
     if guild_id not in welcome:
-      await ctx.send("**You must first set the text channel for welcome messages with '%welcomehere'**")
+      await ctx.send("**You must first set the text channel for welcome messages with \"%welcomehere\"**")
     else:
       await ctx.send("**Welcome message added!**")
       welcome[guild_id].append(message)
@@ -790,9 +831,7 @@ async def delwelcome(ctx, number : int):
     else:
       try:
         welcome[guild_id].pop(number)
-        # deletes server from json if there are no messages
-        if len(welcome[guild_id]) == 1:
-          welcome.pop(guild_id)
+        await ctx.send(f"**Message {number} deleted**")
       except:
         await ctx.send(f"**Message {number} does not exist**")
         return
@@ -826,7 +865,7 @@ async def welcomemessages(ctx):
       outgoing = f"**\nWelcome messages for {ctx.guild.name}:**\n"
       for message in range(1, len(welcome[guild_id])):
         outgoing += "(" + str(message) + ") " + welcome[guild_id][message] + '\n'
-      outgoing += "\n*You can reference the numbers to the left of the message to remove them using %delwelcome 'number here'*"
+      outgoing += "\n*You can reference the numbers to the left of the message to remove them using %delwelcome [number here]*"
       await ctx.author.send(outgoing)
   else:
     try:
@@ -933,7 +972,7 @@ async def resume(ctx):
 
 
 @client.command(brief="Retrieve weather for an inputted city")
-async def weather(ctx, city):
+async def weather(ctx, *, city):
     #request
     response = requests.get("http://api.openweathermap.org/data/2.5/weather?q=" + city + "&units=imperial&appid=4c0715acb4fc81b82bace4942a843378&lang=en")
     #status check and output
@@ -977,12 +1016,9 @@ async def weather(ctx, city):
 
 @client.command(brief="What will the 8 ball say?")
 async def ball(ctx):
-  #request
-  response = requests.get("https://8ball.delegator.com/magic/JSON/randomstuff")
-  json_data = json.loads(response.text)
-  #use key to answer
-  answer = str(json_data["magic"]["answer"])
-  await ctx.send(f"*{answer}*")
+  ball_messages = ["It is certain", "It id decidedly so", "Without a doubt", "Yes, definitely", "You may rely on it", "As I see it, yes", "Most likely", "Outlook good", "Signs point to yes", "Yarp", "Narp", "Concentrate and ask again", "Don't count on it", "My reply is no", "My sources say no", "Outlook not so good", "Very doubtful"]
+  message = random.choice(ball_messages)
+  await ctx.send(f"*{message}*")
 
 
 @client.command()
@@ -999,10 +1035,9 @@ async def flip(ctx):
     await ctx.send("*Tails*")
 
 
-@client.command(brief="Create a customizable 'looking for group' message", description="Create a customizable 'looking for group' message. First type '%lfg' followed by the number of people needed, the event name of the lfg, the number of hours you want the lfg to last, and true/false if the lfg is scheduled or not. Scheduled means that at the end of the inputted time, the message will send. If it isn't scheduled, the notification message will send immediately when the goal is met. The number of hours and scheduled are set to 12 and false respectively by default, so these are not necessary to create an lfg message.")
-async def lfg(ctx, game : str, goal : str, numHours : float=2, scheduled: bool=False):
+@client.command(brief="Create a customizable \"looking for group\" message", description="Create a customizable \"looking for group\" message. First type \"%lfg\" followed by the number of people needed, the event name of the lfg, the number of hours you want the lfg to last, and true/false if the lfg is scheduled or not. Scheduled means that at the end of the inputted time, the message will send. If it isn't scheduled, the notification message will send immediately when the goal is met. The timer is set to 30 minutes and scheduled are set to false by default, so these are not necessary to create an lfg message.")
+async def lfg(ctx, game : str, goal : str, numHours : float=.5, scheduled: bool=False):
   if numHours <= 200.00 and numHours > 0.00 and int(goal) > 1:
-    original_game = game
     if len(game) == 22:
       try:
         role_id = game[3:21]
@@ -1011,22 +1046,31 @@ async def lfg(ctx, game : str, goal : str, numHours : float=2, scheduled: bool=F
         game = role.name
       except:
         print(role_id + " doesn't exist")
+    # add scheduled information to game
+    if scheduled: game = game + " (scheduled)"
     # get current time
     denver = pytz.timezone('America/Denver')
     denver_time = datetime.now(denver)
-    goal_time = denver_time + timedelta(hours=float(numHours))
-    time_left = str(goal_time-denver_time)[0:19]
-    goal_string = str(goal_time)
+    goal_datetime = denver_time + timedelta(hours=float(numHours))
+    time_left = str(goal_datetime-denver_time)[0:19]
+    goal_time = str(goal_datetime.ctime())[0:len(goal_datetime.ctime()) - 8]
+    length = len(goal_time)
+    hour_int = int(goal_time[11:length - 3])
+    if hour_int >= 12: cycle = " pm"
+    else: cycle = " am"
+    hour_int = hour_int % 12
+    if hour_int == 0: hour_int = 12
+    goal_time = goal_time.replace(goal_time[11:length - 3], str(hour_int), 1)
+    goal_time += cycle
     # write formatted goal to file
-    formattedGoal = goal_string[0:19]
     #embed
     embed = discord.Embed(title=(f"LFG: {int(goal) - 1} more needed for {game}"), description=f"People playing: 1/{goal}", color=discord.Color.green())
     #embed.set_author(name=ctx.message.author.display_name, icon_url=ctx.message.author.avatar_url)
-    embed.set_thumbnail(url=await get_thumbnail(game))
+    embed.set_thumbnail(url=await get_thumbnail(game.replace(" (scheduled)", "")))
     embed.add_field(name="Players:", value=ctx.message.author.mention, inline=False)
     #embed.add_field(name = chr(173), value = chr(173), inline=False)
-    embed.add_field(name="Ends In:", value=time_left, inline=False)
-    embed.add_field(name="Goal Time:", value=formattedGoal, inline=False)
+    embed.add_field(name="Ends In:", value="~" + time_left, inline=False)
+    embed.add_field(name="Goal Time:", value=goal_time, inline=False)
     embed.set_footer(text="React to this message with ✅ or 🚫 to join/leave this lfg.")
     in_embed = await ctx.send(embed=embed)
     channel_id = ctx.message.channel.id
@@ -1043,8 +1087,9 @@ async def lfg(ctx, game : str, goal : str, numHours : float=2, scheduled: bool=F
       'goal':str(goal),
       'guild_id':str(guild_id),
       'guild_name':str(guild_name),
-      'goal_time':str(formattedGoal),
-      'time_left':time_left,
+      'goal_time':goal_time,
+      'goal_datetime':str(goal_datetime)[0:19],
+      'time_left':"~" + time_left,
       'members':[str(ctx.message.author.id)],
       'scheduled':str(scheduled)
     }
@@ -1061,7 +1106,7 @@ async def lfg(ctx, game : str, goal : str, numHours : float=2, scheduled: bool=F
     # write to json file
     with open("lfg.json", "w") as file:
       json.dump(all_lfg, file)
-    print("Created counter for " + game + " in " + ctx.message.guild.name)
+    print("Created LFG for " + game + " in " + ctx.message.guild.name)
   else:
     if int(goal) < 2:
       await ctx.author.send("You can only create an lfg with a goal of 2 or greater.")
@@ -1120,7 +1165,7 @@ async def on_raw_reaction_add(payload):
             send_out += (person.mention + "\n")
           des = f"People playing: {count}/{goal}"
           new_info = discord.Embed(title=(f"LFG: {remaining} more needed for {lfg_name}"), description=des, color=discord.Color.green())
-          new_info.set_thumbnail(url=await get_thumbnail(lfg_name))
+          new_info.set_thumbnail(url=await get_thumbnail(lfg_name.replace(" (scheduled)", "")))
           new_info.add_field(name="Players:", value=send_out, inline=False)
           new_info.add_field(name="Ends In:", value=time_left, inline=False)
           new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
@@ -1164,7 +1209,7 @@ async def on_raw_reaction_add(payload):
               send_out += (person.mention + "\n")
           #embed
           new_info = discord.Embed(title=f"LFG: {remaining} more needed for {lfg_name}", description=des, color=discord.Color.green())
-          new_info.set_thumbnail(url=await get_thumbnail(lfg_name))
+          new_info.set_thumbnail(url=await get_thumbnail(lfg_name.replace(" (scheduled)", "")))
           new_info.add_field(name="Players:", value=send_out, inline=False)
           new_info.add_field(name="Ends In:", value=time_left, inline=False)
           new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
@@ -1220,9 +1265,6 @@ async def on_raw_reaction_add(payload):
           with open("games.json", "w") as file:
             json.dump(games, file)
           break
-        
-
-
 
 
 @client.command(brief="Retrieves runes for a LoL champ")
@@ -1288,9 +1330,10 @@ async def check():
   for file in all_lfg:
     if file == "time":
       continue
+    goal_datetime = all_lfg[file]['goal_datetime']
     goal_time = all_lfg[file]['goal_time']
-    extracted_new = datetime.strptime(goal_time, "%Y-%m-%d %H:%M:%S")
-    time_left = str(extracted_new-formatted_denver)[0:19]
+    extracted_new = datetime.strptime(goal_datetime, "%Y-%m-%d %H:%M:%S")
+    time_left = "~" + str(extracted_new-formatted_denver)[0:19]
     members = all_lfg[file]['members']
     count = len(members)
     lfg_name = all_lfg[file]['lfg_name']
@@ -1300,36 +1343,47 @@ async def check():
     if (formatted_denver >= extracted_new):  # goal time is passed
       print("Deleting file " + file.rstrip('\n')  + " due to time passing")
       # retrieve lfg information
-      channel = client.get_channel(int(all_lfg[file]['channel_id']))
-      in_embed = await channel.fetch_message(int(all_lfg[file]['embed_id']))
+      try:
+        channel = client.get_channel(int(all_lfg[file]['channel_id']))
+        in_embed = await channel.fetch_message(int(all_lfg[file]['embed_id']))
+      except:
+        # catch
+        to_delete.append(file)
+        continue
       scheduled = True if all_lfg[file]['scheduled'] == 'True' else False
       guild = all_lfg[file]['guild_name']
       send_out = ""
-      # create message send out
+      # create list of member objects
       for player_id in members:
         member_obj = await client.fetch_user(int(player_id))
-        if scheduled and count == goal:
-          await member_obj.send(f"**Your scheduled event for {lfg_name} in {guild} is ready to start!**")
-        elif scheduled and count != goal:
-          await member_obj.send(f"**Your scheduled event for {lfg_name} in the '{guild}' server has failed to meet its goal, but you only need {goal - count} more!**")
         names.append(member_obj)
-      # delete unscheduled message but save scheduled message
-      if not scheduled:
-        await in_embed.delete()
-      else:
+
+      # scheduled lfg
+      if scheduled:
+        # create send out message
         if names == []:
           send_out = "N/A"
         else:
           for member in names:
             send_out += (member.mention + "\n")
+        lfg_name = lfg_name[0:len(lfg_name) - 12]
         # update embed
-        des = str("People playing: " + str(count))
+        des = str(f"People playing: {count}/{goal}")
         new_info = discord.Embed(title=f"LFG: {remaining} more needed for {lfg_name}", description=des, color=discord.Color.red())
-        new_info.set_thumbnail(url=await get_thumbnail(lfg_name))
+        new_info.set_thumbnail(url=await get_thumbnail(lfg_name.replace(" (scheduled)", "")))
         new_info.add_field(name="Players:", value=send_out, inline=False)
-        new_info.add_field(name="Goal Time:", value=formattedGoal, inline=False)
-        new_info.set_footer(text="LFG has ended.")
+        new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
+        new_info.set_footer(text="LFG ended.")
         await in_embed.edit(embed=new_info)
+        for member_obj in names:
+          if count == goal:
+            await member_obj.send(f"**Your scheduled event for {lfg_name} in \"{guild}\" is ready to start!\nPlayers:**\n{send_out}")
+          elif count != goal:
+            await member_obj.send(f"**Your scheduled event for {lfg_name} in the \"{guild}\" server has failed to meet its goal, but you only need {goal - count} more!\nPlayers:**\n{send_out}")
+
+      # unscheduled lfg
+      else:
+        await in_embed.delete()
       # queue file for deletion
       to_delete.append(file)
     # update time in lfg time left
@@ -1350,7 +1404,7 @@ async def check():
           send_out += (member.mention + "\n")
       des = str(f"People playing: {count}/{goal}")
       new_info = discord.Embed(title=f"LFG: {remaining} more needed for {lfg_name}", description=des, color=discord.Color.green())
-      new_info.set_thumbnail(url=await get_thumbnail(lfg_name))
+      new_info.set_thumbnail(url=await get_thumbnail(lfg_name.replace(" (scheduled)", "")))
       new_info.add_field(name="Players:", value=send_out, inline=False)
       new_info.add_field(name="Ends In:", value=time_left, inline=False)
       new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
