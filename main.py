@@ -43,6 +43,14 @@ async def on_ready():
   asyncio.create_task(check())
   #asyncio.create_task(currency_update())
 
+
+@client.command()
+async def foo(ctx):
+  embed = discord.Embed(title="Yoo")
+  embed.set_image(url='https://static-cdn.jtvnw.net/previews-ttv/live_user_drsanic-1600x900.jpg')
+  await ctx.send("**Im typing**", embed=embed)
+
+
 async def twitch_is_online(username):
   url = TWITCH_API_ENDPOINT.format(username)
   reqSession = requests.Session()
@@ -1181,7 +1189,7 @@ async def on_raw_reaction_add(payload):
           new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
           new_info.set_footer(text="React to this message with ✅ or 🚫 to join/leave this lfg.")
           await in_embed.edit(embed=new_info)
-
+          print("Detected reaction from " + str(payload.member) + ". There are is now ", count, " out of ", goal, " people ready to play " + lfg_name + ".")
           #met goal
           if (count == goal):
             print(f"Goal has been reached for {goal} in {guild_name}.")
@@ -1191,9 +1199,6 @@ async def on_raw_reaction_add(payload):
               await in_embed.delete()
               all_lfg.pop(embed_id)
               print("Removed lfg from database.")
-          #not met goal
-          else:
-            print("Detected reaction from " + str(payload.member) + ". There are is now ", count, " out of ", goal, " people ready to play " + lfg_name + ".")
           
           # dump new info into lfg json
           with open("lfg.json", "w") as file:
@@ -1320,24 +1325,21 @@ async def check():
         if streams[guild]['streamers'][streamer] == 'offline' and streamer_info != []:
           streams[guild]['streamers'][streamer] = 'online'
           # create embed for stream
-          embed = discord.Embed(title=streamer_info[0]['title'], url=f"https://www.twitch.tv/{streamer}")
-          embed.add_field(name="Playing:", value=f"Game: {streamer_info[0]['game_name']}", inline=True)
+          embed = discord.Embed(title=streamer_info[0]['title'], url=f"https://www.twitch.tv/{streamer}", color=discord.Color.dark_purple())
+          embed.add_field(name="Playing:", value=f"{streamer_info[0]['game_name']}", inline=True)
           embed.add_field(name="Started at:", value=curr_time, inline=True)
-          embed.set_author(name=f"{streamer.title()} is now live")
+          embed.set_author(name=streamer.title())
           pic = streamer_info[0]['thumbnail_url'].replace('{width}', '16000').replace('{height}', '9000')
           embed.set_image(url=pic)
           embed.set_footer(text=f"Click the title to watch!")
           # send out stream update
-          await channel.send(f"@everyone **{streamer.title()} is now live!**")
-          await channel.send(embed=embed)
+          await channel.send(f"@here **{streamer.title()} is now live!**", embed=embed)
         elif streams[guild]['streamers'][streamer] == 'online' and streamer_info == []:
           streams[guild]['streamers'][streamer] = 'offline'
   with open("streams.json", "w") as file:
     json.dump(streams, file)
           
-
-  denver = pytz.timezone('America/Denver')
-  denver_time = datetime.now(denver)
+  # update lfg time
   formatted_denver = denver_time.strptime(str(denver_time)[0:19], "%Y-%m-%d %H:%M:%S")
   with open("lfg.json", "r") as file:
     try:
