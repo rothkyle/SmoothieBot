@@ -34,9 +34,15 @@ TWITCH_HEADERS = {
 @client.event
 async def on_ready():
   print("Bot is up and running")
-  #await check()
+  for guild in client.guilds:
+    print(guild.name)
   asyncio.create_task(check())
-  #asyncio.create_task(currency_update())
+
+
+async def log(text : str):
+  with open('logs.txt', 'a') as file:
+    file.write(text + '\n')
+  print(text)
 
 
 async def twitch_is_online(username):
@@ -56,13 +62,14 @@ async def stream(ctx, action, username : str=""):
       except:
         print('streams.json empty or cannot be loaded')
         streams = dict()
+        streams['streamers_all'] = {}
     guild = str(ctx.guild.id)
 
     # set text channel where stream notifs are sent
     if action == 'channel':
       guild_info = {
         'channel': str(ctx.channel.id),
-        'streamers': {}
+        'streamers': []
       }
       streams[guild] = guild_info
       await ctx.send(f"Stream notifications will be sent to **{ctx.channel.name}**")
@@ -76,7 +83,17 @@ async def stream(ctx, action, username : str=""):
       if username in streams[guild]['streamers']:
         await ctx.send("Streamer already added.")
       else:
-        streams[guild]['streamers'][username.lower()] = 'offline'
+        streams[guild]['streamers'].append(username.lower())
+        # update streamers_all in streams.json
+        if username not in streams['streamers_all']:
+          streamer_info = {
+            'status': 'offline',
+            'quantity': '1'
+          }
+          streams['streamers_all'][username] = streamer_info
+        else:
+          # adds quantity to streamers_all
+          streams['streamers_all'][username]['quantity'] = str(int(streams['streamers_all'][username]['quantity']) + 1)
         await ctx.send(f"**{username}** added")
     
     # print all streamer names
@@ -94,7 +111,11 @@ async def stream(ctx, action, username : str=""):
     
     elif action == 'del':
       if username in streams[guild]['streamers']:
-        streams[guild]['streamers'].pop(username)
+        streams[guild]['streamers'].remove(username)
+        streams['streamers_all'][username]['quantity'] = str(int(streams['streamers_all'][username]['quantity']) - 1)
+        # deletes streamer from streamers_all if no notifications are set up for them anymore
+        if streams['streamers_all'][username]['quantity'] == '0':
+          streams['streamers_all'].pop(username)
         await ctx.send(f"{username} has been removed")
       else:
         await ctx.send(f"{username} is not a streamer set up for this server")
@@ -152,6 +173,7 @@ async def lolstat(ctx, *, summoner_name : str):
     name = solo['summonerName']
     rank = solo['tier'].title() + " " + solo['rank']
     await ctx.send(f"{name} is ranked {rank} with a {winrate}% winrate in Solo/Duo")
+    await log(f"{name} is ranked {rank} with a {winrate}% winrate in Solo/Duo")
   else: await ctx.send("**This summoner doesn't play Ranked Solo/Duo.**")
 
 
@@ -180,7 +202,7 @@ async def get_thumbnail(title : str):
   else: return "https://lfgroup.gg/wp-content/uploads/2020/05/lfg-banner-transparent.png"
 
 
-@client.command(brief="Create welcome messages for your server. Type \"%help welcome\" for info.", description="Welcome Actions:\nChannel: Set the channel where welcome messages are sent to. The channel will be set to whatever text channel you send this command in.\nAdd: Add a welcome message to your server. Multiple word messages and links are supported. Using a \"=\" in the message will @ the person who joined. Having multiple welcome messages will make it so a random welcome message is sent when a member joins your server. (%welcome add <message>)\nDisplay: Displays a numbered list of all welcome messages for your server.\nDel: Use the numbers to delete different messages using \"%welcome del <index>\". The index comes from the numbered list from the \"%welcome display\" command.")
+@client.command(brief="Create welcome messages for your server. Type \"%help welcome\" for info.", description="Welcome Actions:\nChannel: Set the channel where welcome messages are sent to. The channel will be set to whatever text channel you send this command in.\nAdd: Add a welcome message to your server. Multiple word messages and links are supported. Using a \"=\" in the message will @ the person who joined. Having multiple welcome messages will make it so a random welcome message is sent when a member joins your server. (%welcome add <message>)\nDisplay: Displays a numbered list of all welcome messages for your server.\nDel: Uses indexes from display to delete different messages using \"%welcome del <index>\".")
 async def welcome(ctx, *, action):
   if ctx.message.author.guild_permissions.administrator:
     action = action.split()
@@ -274,10 +296,11 @@ async def on_member_join(member):
       message = messages[random.randrange(1, len(messages))]
       message = message.replace('=', member.mention)
       await channel.send(message)
+      await log(f"Welcome message \"{message}\" sent to {member.guild.name}")
     except:
       print("No server messages")
 
-
+"""
 @client.command(brief="Makes bot join voice")
 async def join(ctx):
   user = ctx.message.author
@@ -351,7 +374,7 @@ async def resume(ctx):
     voice.resume()
   else:
     await ctx.send("**Audio is already playing.**")
-
+"""
 
 @client.command(brief="Retrieve weather for an inputted city")
 async def weather(ctx, *, city):
@@ -389,6 +412,7 @@ async def weather(ctx, *, city):
       value=weather_clouds + "%",
       inline=True)
       await ctx.send(embed=embed)
+      await log(f"Found weather for {city}")
       #await ctx.send("Feels like " + weather_feels_like + "ºF\nHumidity: " + weather_humidity + "%\nDescription: " + weather_clouds)
     else:
       #if something goes wrong finding the city through the api
@@ -400,16 +424,19 @@ async def weather(ctx, *, city):
 async def ball(ctx):
   ball_messages = ["It is certain", "It id decidedly so", "Without a doubt", "Yes, definitely", "You may rely on it", "As I see it, yes", "Most likely", "Outlook good", "Signs point to yes", "Yarp", "Narp", "Concentrate and ask again", "Don't count on it", "My reply is no", "My sources say no", "Outlook not so good", "Very doubtful"]
   message = random.choice(ball_messages)
+  await log(f"{ctx.message.author} shook the 8 ball")
   await ctx.send(f"*{message}*")
 
 
 @client.command()
 async def hello(ctx):
   await ctx.send('oi punk :snake:')
+  await log(f"Said hi to {ctx.message.author}")
 
 
 @client.command(brief="Flip a coin")
 async def flip(ctx):
+  await log(f"{ctx.message.author} flipped the coin")
   side = random.randint(1, 2)
   if (side == 1):
     await ctx.send("*Heads*")
@@ -417,9 +444,27 @@ async def flip(ctx):
     await ctx.send("*Tails*")
 
 
-@client.command(brief="Create a customizable \"looking for group\" message", description="Create a customizable \"looking for group\" message. First type \"%lfg\" followed by the number of people needed, the event name of the lfg, the number of hours you want the lfg to last, and true/false if the lfg is scheduled or not. Scheduled means that at the end of the inputted time, the message will send. If it isn't scheduled, the notification message will send immediately when the goal is met. The timer is set to 30 minutes and scheduled are set to false by default, so these are not necessary to create an lfg message.")
-async def lfg(ctx, game : str, goal : str, numHours : float=.5, scheduled: bool=False):
+@client.command(brief="Create a customizable \"looking for group\" message", description="Create a customizable \"looking for group\" message. First type \"%lfg\" followed by the event name of the lfg, the number of people needed, the number of hours you want the lfg to last, and true/false if the lfg is scheduled or not. Scheduled means that at the end of the inputted time, the players will be notified the lfg is ready. If it isn't scheduled, the notification message will send immediately when the goal is met. The timer is set to 30 minutes and scheduled are set to false by default, so these are not necessary to create an lfg message.")
+async def lfg(ctx, game : str="", goal : str=0, numHours : float=.5, scheduled: bool=False):
+  if game == "":
+    await ctx.send("Use the \"%help lfg\" command to learn how to create an lfg message!")
+    return
   if numHours <= 200.00 and numHours > 0.00 and int(goal) > 1:
+    # extract lfg json
+    with open("lfg.json", "r") as file:
+      try:
+        all_lfg = json.load(file)
+      except:
+        all_lfg = dict()
+    
+    # check if user owns more than 1 lfg
+    owner = str(ctx.message.author.id)
+    for lfg in all_lfg:
+      if lfg == 'time': continue
+      if all_lfg[lfg]['owner'] == owner:
+        await ctx.send("You can't own more than 1 lfg at a time.")
+        return
+
     if len(game) == 22:
       try:
         role_id = game[3:21]
@@ -467,20 +512,15 @@ async def lfg(ctx, game : str, goal : str, numHours : float=.5, scheduled: bool=
       'embed_id':str(embed_id),
       'lfg_name':str(game),
       'goal':str(goal),
+      'owner':owner,
       'guild_id':str(guild_id),
       'guild_name':str(guild_name),
       'goal_time':goal_time,
       'goal_datetime':str(goal_datetime)[0:19],
       'time_left':"~" + time_left,
-      'members':[str(ctx.message.author.id)],
+      'members':[owner],
       'scheduled':str(scheduled)
     }
-    # extract lfg json
-    with open("lfg.json", "r") as file:
-      try:
-        all_lfg = json.load(file)
-      except:
-        all_lfg = dict()
     # update lfg json
 
     all_lfg[str(embed_id)] = lfg_dict
@@ -488,12 +528,12 @@ async def lfg(ctx, game : str, goal : str, numHours : float=.5, scheduled: bool=
     # write to json file
     with open("lfg.json", "w") as file:
       json.dump(all_lfg, file)
-    print("Created LFG for " + game + " in " + ctx.message.guild.name)
+    await log(f"{ctx.message.author} created an LFG for {game} in {ctx.message.guild.name} for {numHours} hours")
   else:
     if int(goal) < 2:
-      await ctx.author.send("You can only create an lfg with a goal of 2 or greater.")
+      await ctx.send("You can only create an lfg with a goal of 2 or greater.")
     else:
-      await ctx.author.send("You can only set an lfg timer for >0 to 200 hours")
+      await ctx.send("You can only set an lfg timer for >0 to 200 hours")
   """
   try:
     await ctx.message.delete()
@@ -555,22 +595,22 @@ async def on_raw_reaction_add(payload):
           new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
           new_info.set_footer(text="React to this message with ✅ or 🚫 to join/leave this lfg.")
           await in_embed.edit(embed=new_info)
-          print("Detected reaction from " + str(payload.member) + ". There are is now ", count, " out of ", goal, " people ready to play " + lfg_name + ".")
+          await log(f"Detected reaction from {payload.member}. There are is now {count} out of {goal} people ready to play {lfg_name}.")
           #met goal
           if (count == goal):
-            print(f"Goal has been reached for {goal} in {guild_name}.")
+            await log(f"Goal has been reached for {goal} in {guild_name}.")
             if not scheduled:          
               for person in members:
                 await person.send(f"**Your group for {lfg_name} in {guild_name} is ready!\nPeople playing:\n{send_out}**")
               await in_embed.delete()
               all_lfg.pop(embed_id)
-              print("Removed lfg from database.")
+              await log(f"Removed {lfg_name} lfg in {guild_name} from database.")
           
           # dump new info into lfg json
           with open("lfg.json", "w") as file:
             json.dump(all_lfg, file)
         else:
-          print(payload.member.name + " already in queue.")
+          print(f"{payload.member.name} already in queue.")
         if count != goal:
           await embed_obj.remove_reaction("✅", payload.member)
 
@@ -581,7 +621,7 @@ async def on_raw_reaction_add(payload):
           remaining = goal - count
           members.remove(member)
           all_lfg[embed_id]['members'].remove(str(member.id))
-          print(f"{payload.member} has left the lfg for {lfg_name}.")
+          await log(f"{payload.member} has left the lfg for {lfg_name}.")
           des = f"People playing: {count}/{goal}"
           if members == []:
             send_out = "N/A"
@@ -601,51 +641,6 @@ async def on_raw_reaction_add(payload):
           with open("lfg.json", "w") as file:
             json.dump(all_lfg, file)
         await embed_obj.remove_reaction("🚫", payload.member)
-      return
-    elif str(payload.emoji.name) == "✅":
-      member = str(payload.member.id)
-      with open("bank.json", "r") as file:
-        try:
-          bank = json.load(file)
-        except:
-          print("There are no members in the bank")
-        if member not in bank:
-          await payload.member.send("**You can't play because you dont have a bank account set up! Every hour money is updated and your bank account will be created.**")
-          return
-      with open("games.json", "r") as file:
-        games = json.load(file)
-      for game in games:
-        if game == message_id and member not in games[message_id]['members'] and len(games[message_id]['members']) <= 12:
-          # match found
-          try:
-            in_embed = await client.get_channel(payload.channel_id).fetch_message(int(message_id))
-          except:
-            print(f"Message for a game could not be found.")
-            games.pop(message_id)
-            with open("games.json", "w") as file:
-              json.dump(games, file)
-            return
-          send_out = ""
-          # create send_out
-          player_info = {
-            'status': 'Playing',
-            'hand': [],
-            'debt': '0'
-          }
-          games[message_id]['members'][member] = player_info
-          for member in games[message_id]['members']:
-            member_obj = await client.fetch_user(int(member))
-            send_out += (member_obj.mention + '\n')
-          # embed
-          des = "People playing: " + str(len(games[message_id]['members']))
-          new_info = discord.Embed(title=("POKER: REACT WITH ✅ TO PLAY"), description=des, color=discord.Color.blue())
-          new_info.add_field(name="Players:", value=send_out, inline=False)
-          await in_embed.edit(embed=new_info)
-          await payload.member.send(f"**You have joined the poker game and you currently have ${bank[member][0]} in your bank account.**")
-          # dump new info
-          with open("games.json", "w") as file:
-            json.dump(games, file)
-          break
 
 
 @client.command(brief="Retrieves runes for a LoL champ")
@@ -654,7 +649,7 @@ async def runes(ctx, champion : str, role : str):
   elif role == "jg": role = "jungle"
   elif role == "sup": role = "support"
   elif role == "ad": role = "adc"
-  print(f"Searching u.gg for {champion} in {role}...")
+  await log(f"Searching u.gg for {champion} in {role}...")
   URL = "https://u.gg/lol/champions/" + champion + "/build?role=" + role + "&rank=overall"
   valid=validators.url(URL)
   if valid:
@@ -664,6 +659,23 @@ async def runes(ctx, champion : str, role : str):
 
 
 async def check():
+  with open("streams.json", "r") as file:
+    try:
+      streams = json.load(file)
+    except:
+      print('streams.json empty or cannot be loaded')
+      streams = dict()
+  with open("welcome.json", "r") as file:
+    try:
+      welcome = json.load(file)
+    except:
+      print('welcome.json empty or cannot be loaded')
+      welcome = dict()
+  bot_guilds = []
+  for guild in client.guilds:
+    bot_guilds.append(str(guild.id))
+  
+  # time stuff for lfg
   denver = pytz.timezone('America/Denver')
   denver_time = datetime.now(denver)
   curr_time = str(denver_time.ctime())[0:len(denver_time.ctime()) - 8]
@@ -675,35 +687,42 @@ async def check():
   if hour_int == 0: hour_int = 12
   curr_time = curr_time.replace(curr_time[11:length - 3], str(hour_int), 1)
   curr_time += cycle
-  with open("streams.json", "r") as file:
-    try:
-      streams = json.load(file)
-    except:
-      print('streams.json empty or cannot be loaded')
-      streams = dict()
+
+
   # check each guild's stream info
   if streams != {}:
-    for guild in streams:
-      channel = client.get_channel(int(streams[guild]['channel']))
-      # check each streamer's status
-      for streamer in streams[guild]['streamers']:
-        streamer_info = await twitch_is_online(streamer)
-        if streams[guild]['streamers'][streamer] == 'offline' and streamer_info != []:
-          streams[guild]['streamers'][streamer] = 'online'
-          # streamer has become online
-          #create embed
-          embed = discord.Embed(title=streamer_info[0]['title'], url=f"https://www.twitch.tv/{streamer}", color=discord.Color.dark_purple())
-          embed.add_field(name="Playing:", value=f"{streamer_info[0]['game_name']}", inline=True)
-          embed.add_field(name="Started at:", value=curr_time, inline=True)
-          embed.set_author(name=streamer.title())
-          pic = streamer_info[0]['thumbnail_url'].replace('{width}', '1600').replace('{height}', '900')
-          print(pic)
-          embed.set_image(url=pic)
-          embed.set_footer(text=f"Click the title to watch!")
-          # send out stream update
-          await channel.send(f"@here **{streamer.title()} is now live!**", embed=embed)
-        elif streams[guild]['streamers'][streamer] == 'online' and streamer_info == []:
-          streams[guild]['streamers'][streamer] = 'offline'
+    # check each streamer's status
+    for streamer in streams['streamers_all']:
+      streamer_info = await twitch_is_online(streamer)
+      if streams['streamers_all'][streamer]['status'] == 'offline' and streamer_info != []:
+        streams['streamers_all'][streamer]['status'] = 'online'
+        # streamer has become online
+        #create embed
+        embed = discord.Embed(title=streamer_info[0]['title'], url=f"https://www.twitch.tv/{streamer}", color=discord.Color.dark_purple())
+        embed.add_field(name="Playing:", value=f"{streamer_info[0]['game_name']}", inline=True)
+        embed.add_field(name="Started at:", value=curr_time, inline=True)
+        embed.set_author(name=streamer.title())
+        pic = streamer_info[0]['thumbnail_url'].replace('{width}', '1600').replace('{height}', '900')
+        print(f"{streamer} is now live!")
+        embed.set_image(url=pic)
+        embed.set_footer(text=f"Click the title to watch!")
+        # send out stream update
+        for guild in streams:
+          if guild == 'streamers_all': continue
+          if guild not in bot_guilds:
+            print("A server kicked Smoothie")
+            streams.pop(guild)
+            continue
+          if streams == 'streamers_all': continue
+          # check each server info for streamer
+          if streamer in streams[guild]['streamers']:
+            try:
+              channel = client.get_channel(int(streams[guild]['channel']))
+            except:
+              print(f"Channel cannot be found. Skipping {channel}...")
+            await channel.send(f"@here **{streamer.title()} is now live!**", embed=embed)
+      elif streams['streamers_all'][streamer] == 'online' and streamer_info == []:
+        streams['streamers_all'][streamer]['status'] = 'offline'
   with open("streams.json", "w") as file:
     json.dump(streams, file)
           
@@ -731,7 +750,8 @@ async def check():
     remaining = goal - count
     names = []
     if (formatted_denver >= extracted_new):  # goal time is passed
-      print("Deleting file " + file.rstrip('\n')  + " due to time passing")
+      filename = file.rstrip('\n')
+      print(f"Deleting file {filename} due to time passing")
       # retrieve lfg information
       try:
         channel = client.get_channel(int(all_lfg[file]['channel_id']))
