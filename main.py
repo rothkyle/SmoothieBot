@@ -9,10 +9,11 @@ from datetime import datetime
 import pytz
 from datetime import timedelta
 import asyncio
-import youtube_dl
+#import youtube_dl
 import validators
 from riotwatcher import LolWatcher, ApiError
 import cassiopeia as lol
+import string
 
 streams = os.getenv('streams')
 random.seed()
@@ -34,8 +35,7 @@ TWITCH_HEADERS = {
 @client.event
 async def on_ready():
   print("Bot is up and running")
-  for guild in client.guilds:
-    print(guild.name)
+  print(f"Smoothie Bot is currently in {len(client.guilds)} servers!")
   asyncio.create_task(check())
 
 
@@ -528,7 +528,7 @@ async def lfg(ctx, game : str="", goal : str=0, numHours : float=.5, scheduled: 
     # write to json file
     with open("lfg.json", "w") as file:
       json.dump(all_lfg, file)
-    await log(f"{ctx.message.author} created an LFG for {game} in {ctx.message.guild.name} for {numHours} hours")
+    await log(f"{ctx.message.author} created an LFG for {game} in {ctx.message.guild.name} for {numHours} hours with a goal of {goal} people.")
   else:
     if int(goal) < 2:
       await ctx.send("You can only create an lfg with a goal of 2 or greater.")
@@ -691,6 +691,10 @@ async def check():
 
   # check each guild's stream info
   if streams != {}:
+    # make new random query
+    letters = string.ascii_letters
+    letters = ''.join(random.choice(letters) for i in range(6))
+    query = "?random=" + letters
     # check each streamer's status
     for streamer in streams['streamers_all']:
       streamer_info = await twitch_is_online(streamer)
@@ -702,17 +706,13 @@ async def check():
         embed.add_field(name="Playing:", value=f"{streamer_info[0]['game_name']}", inline=True)
         embed.add_field(name="Started at:", value=curr_time, inline=True)
         embed.set_author(name=streamer.title())
-        pic = streamer_info[0]['thumbnail_url'].replace('{width}', '1600').replace('{height}', '900')
+        pic = streamer_info[0]['thumbnail_url'].replace('{width}', '1600').replace('{height}', '900') + query
         print(f"{streamer} is now live!")
         embed.set_image(url=pic)
         embed.set_footer(text=f"Click the title to watch!")
         # send out stream update
         for guild in streams:
           if guild == 'streamers_all': continue
-          if guild not in bot_guilds:
-            print("A server kicked Smoothie")
-            streams.pop(guild)
-            continue
           if streams == 'streamers_all': continue
           # check each server info for streamer
           if streamer in streams[guild]['streamers']:
@@ -720,9 +720,11 @@ async def check():
               channel = client.get_channel(int(streams[guild]['channel']))
             except:
               print(f"Channel cannot be found. Skipping {channel}...")
-            await channel.send(f"@here **{streamer.title()} is now live!**", embed=embed)
-      elif streams['streamers_all'][streamer] == 'online' and streamer_info == []:
+              continue
+            await channel.send(f"@everyone **{streamer.title()} is now live!**", embed=embed)
+      elif streams['streamers_all'][streamer]['status'] == 'online' and streamer_info == []:
         streams['streamers_all'][streamer]['status'] = 'offline'
+        print(f"{streamer} is now offline")
   with open("streams.json", "w") as file:
     json.dump(streams, file)
           
