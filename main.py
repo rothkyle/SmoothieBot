@@ -392,13 +392,16 @@ async def weather(ctx, *, city):
       weather_country = str(json_data["sys"]["country"])
       weather_city = str(json_data["name"])
       weather_clouds = str(json_data["clouds"]["all"])
+      weather_low = str(json_data["main"]["temp_min"])
+      weather_high = str(json_data["main"]["temp_max"])
+      weather_wind = str(json_data["wind"]["speed"])
       city = weather_city
       response.status_code = 0
       #makes embed in discord server
       embed = discord.Embed(title="Weather",
       description="Weather in " + city + ", " +
       weather_country,
-      color=discord.Color.red())
+      color=discord.Color.teal())
       embed.add_field(name="Feels like:",
       value=weather_feels_like + "ºF",
       inline=True)
@@ -411,12 +414,21 @@ async def weather(ctx, *, city):
       embed.add_field(name="Cloudiness:",
       value=weather_clouds + "%",
       inline=True)
+      embed.add_field(name="High:",
+      value=weather_high + "ºF",
+      inline=True)
+      embed.add_field(name="Low:",
+      value=weather_low + "ºF",
+      inline=True)
+      embed.add_field(name="Wind Speed:",
+      value=weather_wind + " mph",
+      inline=True)
       await ctx.send(embed=embed)
       await log(f"Found weather for {city}")
       #await ctx.send("Feels like " + weather_feels_like + "ºF\nHumidity: " + weather_humidity + "%\nDescription: " + weather_clouds)
     else:
       #if something goes wrong finding the city through the api
-      print("Couldnt find " + city)
+      print("Couldn't find " + city)
       await ctx.send("Couldn't find " + city + ".")
 
 
