@@ -9,13 +9,12 @@ python = "^3.8"
 discord = "^1.0.1"
 flask = "^1.1.2"
 pytz = "^2021.1"
-youtube_dl = "^2021.6.6"
 urllib3 = "^1.26.6"
-PyNaCl = "^1.4.0"
 validators = "^0.18.2"
 pokereval = "^0.2.0"
 riotwatcher = "^3.1.2"
 cassiopeia = "^4.0.18"
+discord-components = "^2.1.0"
 
 [tool.poetry.dev-dependencies]
 

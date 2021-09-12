@@ -14,12 +14,13 @@ import validators
 from riotwatcher import LolWatcher, ApiError
 import cassiopeia as lol
 import string
+from discord_components import *
 
 streams = os.getenv('streams')
 random.seed()
 intents = discord.Intents.default()
 intents.members = True
-client = commands.Bot(command_prefix="%", intents = intents)
+client = commands.Bot(command_prefix="%", case_insensitive = True, intents = intents)
 riot_key = os.getenv('riot_key')
 lol.set_riot_api_key(riot_key)
 lol.set_default_region("NA")
@@ -34,8 +35,10 @@ TWITCH_HEADERS = {
 }
 @client.event
 async def on_ready():
+  DiscordComponents(client)
   print("Bot is up and running")
   print(f"Smoothie Bot is currently in {len(client.guilds)} servers!")
+  asyncio.create_task(buttoner())
   asyncio.create_task(check())
 
 
@@ -456,7 +459,210 @@ async def flip(ctx):
     await ctx.send("*Tails*")
 
 
-@client.command(brief="Create a customizable \"looking for group\" message", description="Create a customizable \"looking for group\" message. First type \"%lfg\" followed by the event name of the lfg, the number of people needed, the number of hours you want the lfg to last, and true/false if the lfg is scheduled or not. Scheduled means that at the end of the inputted time, the players will be notified the lfg is ready. If it isn't scheduled, the notification message will send immediately when the goal is met. The timer is set to 30 minutes and scheduled are set to false by default, so these are not necessary to create an lfg message.")
+@client.command()
+async def lfg(ctx, game : str="", goal : str='0', numHours : float=.5, scheduled: bool=False):
+  if game == "":
+    await ctx.send("Use the \"%help lfg\" command to learn how to create an lfg message!")
+    return
+  if numHours <= 200.00 and numHours > 0.00 and int(goal) > 1:
+    # create buttons
+    buttons = [
+      [
+        Button(style=3, label="Join"),
+        Button(style=4, label="Leave")
+      ]
+    ]
+    # extract lfg json
+    with open("lfg.json", "r") as file:
+      try:
+        all_lfg = json.load(file)
+      except:
+        all_lfg = dict()
+    
+    # check if user owns more than 1 lfg
+    owner = str(ctx.message.author.id)
+    for lfg in all_lfg:
+      if lfg == 'time': continue
+      if all_lfg[lfg]['owner'] == owner:
+        await ctx.send("You can't own more than 1 lfg at a time.")
+        return
+
+    if len(game) == 22:
+      try:
+        role_id = game[3:21]
+        print(role_id)
+        role = ctx.guild.get_role(int(role_id))
+        game = role.name
+      except:
+        print(role_id + " doesn't exist")
+    # add scheduled information to game
+    if scheduled: game = game + " (scheduled)"
+    # get current time
+    denver = pytz.timezone('America/Denver')
+    denver_time = datetime.now(denver)
+    goal_datetime = denver_time + timedelta(hours=float(numHours))
+    time_left = str(goal_datetime-denver_time)[0:19]
+    goal_time = str(goal_datetime.ctime())[0:len(goal_datetime.ctime()) - 8]
+    length = len(goal_time)
+    hour_int = int(goal_time[11:length - 3])
+    if hour_int >= 12: cycle = " pm"
+    else: cycle = " am"
+    hour_int = hour_int % 12
+    if hour_int == 0: hour_int = 12
+    goal_time = goal_time.replace(goal_time[11:length - 3], str(hour_int), 1)
+    goal_time += cycle
+    # write formatted goal to file
+    #embed
+    embed = discord.Embed(title=(f"LFG: {int(goal) - 1} more needed for {game}"), description=f"People playing: 1/{goal}", color=discord.Color.green())
+    embed.set_thumbnail(url=await get_thumbnail(game.replace(" (scheduled)", "")))
+    #embed.set_author(name=ctx.message.author.display_name, icon_url=ctx.message.author.avatar_url)
+    embed.add_field(name="Players:", value=ctx.message.author.mention, inline=False)
+    #embed.add_field(name = chr(173), value = chr(173), inline=False)
+    embed.add_field(name="Ends In:", value="~" + time_left, inline=False)
+    embed.add_field(name="Goal Time:", value=goal_time, inline=False)
+    embed.set_footer(text="Click the buttons below to join or leave this lfg.")
+    in_embed = await ctx.send(components=buttons, embed=embed)
+    channel_id = ctx.message.channel.id
+    embed_id = in_embed.id
+    guild_id = ctx.guild.id
+    guild_name = ctx.guild
+    #store lfg message information in dict then json
+    lfg_dict = {
+      'channel_id':str(channel_id),
+      'embed_id':str(embed_id),
+      'lfg_name':str(game),
+      'goal':str(goal),
+      'owner':owner,
+      'guild_id':str(guild_id),
+      'guild_name':str(guild_name),
+      'goal_time':goal_time,
+      'goal_datetime':str(goal_datetime)[0:19],
+      'time_left':"~" + time_left,
+      'members':[owner],
+      'scheduled':str(scheduled)
+    }
+    # update lfg json
+
+    all_lfg[str(embed_id)] = lfg_dict
+
+    # write to json file
+    with open("lfg.json", "w") as file:
+      json.dump(all_lfg, file)
+    await log(f"{ctx.message.author} created an LFG for {game} in {ctx.message.guild.name} for {numHours} hours with a goal of {goal} people.")
+  else:
+    if int(goal) < 2:
+      await ctx.send("You can only create an lfg with a goal of 2 or greater.")
+    else:
+      await ctx.send("You can only set an lfg timer for >0 to 200 hours")
+
+
+async def buttoner():
+  while True:
+    res = await client.wait_for('button_click')
+    if res.message.embeds != []:
+      if res.message.embeds[0].footer != "Lfg ended":
+        await res.respond(type=5) # thinking message
+        message_id = str(res.message.id)
+        with open("lfg.json", "r") as file:
+          all_lfg = json.load(file)
+        if message_id in all_lfg:
+          embed_id = message_id
+          # retrieve lfg info
+          lfg_name = all_lfg[embed_id]['lfg_name']
+          goal = int(all_lfg[embed_id]['goal'])
+          guild_name = all_lfg[embed_id]['guild_name']
+          goal_time = str(all_lfg[embed_id]['goal_time'])
+          members_list = all_lfg[embed_id]['members']
+          scheduled = True if all_lfg[embed_id]['scheduled'] == 'True' else False
+          time_left = all_lfg[embed_id]['time_left']
+          members = []
+          # retrieve member objects from member ids
+          for player_id in members_list:
+            member_obj = await client.fetch_user(int(player_id))
+            members.append(member_obj)
+          count = len(members_list)
+          member = res.author
+          # fetch lfg objects
+          channel = client.get_channel(res.channel_id)
+          try:
+            embed_obj = await channel.fetch_message(int(embed_id))
+          except:
+            await log(f"Message for the {lfg_name} lfg in {guild_name} could not be found.")
+            all_lfg.pop(embed_id)
+            with open("lfg.json", "w") as file:
+              json.dump(all_lfg, file)
+            return
+          in_embed = await channel.fetch_message(int(embed_id))
+          send_out = ""
+          
+          if res.component.label == "Join" and count < goal:
+            if member not in members:
+              all_lfg[embed_id]['members'].append(str(member.id))
+              members.append(member)
+              count += 1
+              remaining = goal - count
+              for person in members:
+                send_out += (person.mention + "\n")
+              des = f"People playing: {count}/{goal}"
+              new_info = discord.Embed(title=(f"LFG: {remaining} more needed for {lfg_name}"), description=des, color=discord.Color.green())
+              new_info.set_thumbnail(url=await get_thumbnail(lfg_name.replace(" (scheduled)", "")))
+              new_info.add_field(name="Players:", value=send_out, inline=False)
+              new_info.add_field(name="Ends In:", value=time_left, inline=False)
+              new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
+              new_info.set_footer(text="Click the buttons below to join or leave this lfg.")
+              await in_embed.edit(embed=new_info)
+              await res.respond(content=f"You have joined the lfg for **{lfg_name}**")
+              await log(f"Detected reaction from {res.author}. There are is now {count} out of {goal} people ready to play {lfg_name}.")
+              #met goal
+              if (count == goal):
+                await log(f"Goal has been reached for {goal} in {guild_name}.")
+                if not scheduled:          
+                  for person in members:
+                    await person.send(f"Your group for {lfg_name} in {guild_name} is ready!\nPeople playing:\n{send_out}")
+                  await in_embed.delete()
+                  all_lfg.pop(embed_id)
+                  await log(f"Removed {lfg_name} lfg in {guild_name} from database.")
+              
+              # dump new info into lfg json
+              with open("lfg.json", "w") as file:
+                json.dump(all_lfg, file)
+            else:
+              await log(f"{res.author.name} already in LFG.")
+              await res.respond(content="You are already in the LFG.")
+
+            #remove from lfg
+          elif res.component.label == "Leave":
+            if member in members:
+              count -= 1
+              remaining = goal - count
+              members.remove(member)
+              all_lfg[embed_id]['members'].remove(str(member.id))
+              await log(f"{res.author} has left the lfg for {lfg_name}.")
+              await res.respond(content=f"You have left the lfg for **{lfg_name}**")
+              des = f"People playing: {count}/{goal}"
+              if members == []:
+                send_out = "N/A"
+              else:
+                for person in members:
+                  send_out += (person.mention + "\n")
+              #embed
+              new_info = discord.Embed(title=f"LFG: {remaining} more needed for {lfg_name}", description=des, color=discord.Color.green())
+              new_info.set_thumbnail(url=await get_thumbnail(lfg_name.replace(" (scheduled)", "")))
+              new_info.add_field(name="Players:", value=send_out, inline=False)
+              new_info.add_field(name="Ends In:", value=time_left, inline=False)
+              new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
+              new_info.set_footer(text="Click the buttons below to join or leave this lfg.")
+              await in_embed.edit(embed=new_info)
+
+              # dump new info into lfg json
+              with open("lfg.json", "w") as file:
+                json.dump(all_lfg, file)
+            else:
+              await log(f"{res.author.name} can't leave an LFG if already in LFG.")
+              await res.respond(content="You can't leave an LFG if alredy in LFG.")
+
+"""
+@client.command(brief="Create a customizable \"looking for group\" message. Type \"%help lfg\"", description="Create a customizable \"looking for group\" message. First type \"%lfg\" followed by the event name of the lfg, the number of people needed, the number of hours you want the lfg to last, and true/false if the lfg is scheduled or not. Scheduled means that at the end of the inputted time, the players will be notified the lfg is ready. If it isn't scheduled, the notification message will send immediately when the goal is met. The timer is set to 30 minutes and scheduled are set to false by default, so these are not necessary to create an lfg message.")
 async def lfg(ctx, game : str="", goal : str=0, numHours : float=.5, scheduled: bool=False):
   if game == "":
     await ctx.send("Use the \"%help lfg\" command to learn how to create an lfg message!")
@@ -547,12 +753,14 @@ async def lfg(ctx, game : str="", goal : str=0, numHours : float=.5, scheduled: 
     else:
       await ctx.send("You can only set an lfg timer for >0 to 200 hours")
   """
+"""
   try:
     await ctx.message.delete()
   except:
     print("Not enough permissions to delete lfg call.")
   """
 
+"""
 
 #reaction checker
 @client.event
@@ -653,7 +861,7 @@ async def on_raw_reaction_add(payload):
           with open("lfg.json", "w") as file:
             json.dump(all_lfg, file)
         await embed_obj.remove_reaction("🚫", payload.member)
-
+"""
 
 @client.command(brief="Retrieves runes for a LoL champ")
 async def runes(ctx, champion : str, role : str):
@@ -832,7 +1040,7 @@ async def check():
       new_info.add_field(name="Players:", value=send_out, inline=False)
       new_info.add_field(name="Ends In:", value=time_left, inline=False)
       new_info.add_field(name="Goal Time:", value=goal_time, inline=False)
-      new_info.set_footer(text="React to this message with ✅ or 🚫 to join/leave this lfg.")
+      new_info.set_footer(text="Click the buttons below to join or leave this lfg.")
       await in_embed.edit(embed=new_info)
       all_lfg[file]['time_left'] = str(time_left)
 
