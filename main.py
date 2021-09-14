@@ -21,6 +21,7 @@ random.seed()
 intents = discord.Intents.default()
 intents.members = True
 client = commands.Bot(command_prefix="%", case_insensitive = True, intents = intents)
+client.remove_command("help")
 riot_key = os.getenv('riot_key')
 lol.set_riot_api_key(riot_key)
 lol.set_default_region("NA")
@@ -48,6 +49,93 @@ async def on_ready():
   asyncio.create_task(buttoner())
   asyncio.create_task(check())
 
+@client.group(invoke_without_command=True)
+async def help(ctx):
+  e = discord.Embed(title="Help", description="Use %help <command> for extended\n information on a command", color=ctx.author.color)
+  bot_pic_url = (await client.fetch_user("810761971979911188")).avatar_url
+  e.set_thumbnail(url=bot_pic_url)
+
+  e.add_field(name="**Commands:**", value="`•lfg\n •stream\n •welcome\n •weather\n •flip\n •ball\n •lolstat\n •runes\n •hello \n`")
+  e.add_field(name="**Links:**", value="[Add Smoothie](https://discord.com/api/oauth2/authorize?client_id=810761971979911188&permissions=1073899584&scope=bot)\n [Vote for Smoothie](https://top.gg/bot/810761971979911188/vote)", inline=False)
+  e.set_footer(text="Created by Sanic#8139")
+  await ctx.send(embed=e)
+  await log(f"{ctx.message.author} requested help information in {ctx.guild.name}")
+
+@help.command()
+async def lfg(ctx):
+  e = discord.Embed(title="LFG Help", description="**Description:**\nCreate a customizable \"looking for group\" message. First type \"%lfg\" followed by the event name of the lfg, the number of people needed, the number of hours you want the lfg to last (decimals supported), and true/false if the lfg is scheduled or not. Scheduled means that at the end of the inputted time, the players will be notified the lfg is ready. If it isn't scheduled, the notification message will send immediately when the goal is met. The timer is set to 30 minutes and scheduled are set to false by default, so these are not necessary to create an lfg message.", color=ctx.author.color)
+  e.set_thumbnail(url="https://lfgroup.gg/wp-content/uploads/2020/05/lfg-banner-transparent.png")
+  e.add_field(name="**Syntax**", value="`%lfg <name> <goal> <hours> <scheduled(true/false)>`\n *The hoursand scheduled fields are optional*")
+  await ctx.send(embed=e)
+
+@help.command()
+async def stream(ctx):
+  e = discord.Embed(title="**Stream Help**", description="The stream command uses different actions to function\n\n**Actions:**", color=ctx.author.color)
+  e.add_field(name="Channel", value="Sets the text channel where stream notifications will be sent to. You must type this in the desired text channel.", inline=False)
+  e.add_field(name="Add", value="Add a Twitch streamer to your server's notifications. You must type their username exactly. You can find this in the url of their stream.", inline=False)
+  e.add_field(name="Del", value="Deletes a streamer from your server's notifications.", inline=False)
+  e.add_field(name="Display", value="Displays all streamers with notifications for your server.", inline=False)
+  e.set_thumbnail(url="https://lfgroup.gg/wp-content/uploads/2020/05/lfg-banner-transparent.png")
+  e.add_field(name="**Syntax**", value="`%stream <action> <username>`\n *The channel and display actions do not require the username field*", inline=False)
+  await ctx.send(embed=e)
+
+@help.command()
+async def welcome(ctx):
+  e = discord.Embed(title="**Welcome Help**", description="The welcome command uses different actions to function\n\n**Actions:**",color=ctx.author.color)
+  e.add_field(name="Channel", value="Set the channel where welcome messages are sent to. You must type this in the desired text channel.", inline=False)
+  e.add_field(name="Add", value="Add a welcome message to your server. Multiple word messages and links are supported. Using an \"=\" symbol in the message will @ the person who joined. Having multiple welcome messages will make it so a random welcome message is sent when a member joins your server.", inline=False)
+  e.add_field(name="Del", value="Uses indexes from the display action to delete different messages. To be clear, use the display action to determine which index each welcome message is assigned to. You may have to use the display function again as index will be reassigned after deleting a message.", inline=False)
+  e.add_field(name="Display", value="Displays a numbered list of all welcome messages for your server.", inline=False)
+  bot_pic_url = (await client.fetch_user("810761971979911188")).avatar_url
+  e.set_thumbnail(url=bot_pic_url)
+  e.add_field(name="**Syntax**", value="`%welcome <action> <message/index>`\n *The message and index fields are only required for the add/del actions*", inline=False)
+  await ctx.send(embed=e)
+
+@help.command()
+async def weather(ctx):
+  e = discord.Embed(title="**Weather Help**", description="The weather command retrieves weather information for an inputted city.",color=ctx.author.color)
+  bot_pic_url = (await client.fetch_user("810761971979911188")).avatar_url
+  e.set_thumbnail(url=bot_pic_url)
+  e.add_field(name="**Syntax**", value="`%weather <city>`", inline=False)
+  await ctx.send(embed=e)
+
+@help.command()
+async def flip(ctx):
+  e = discord.Embed(title="**Flip Help**", description="The flip command will flip a coin. The command will output Heads or Tails.",color=ctx.author.color)
+  bot_pic_url = (await client.fetch_user("810761971979911188")).avatar_url
+  e.set_thumbnail(url=bot_pic_url)
+  e.add_field(name="**Syntax**", value="`%flip`", inline=False)
+  await ctx.send(embed=e)
+
+@help.command()
+async def lolstat(ctx):
+  e = discord.Embed(title="**LoLStat Help**", description="The lolstat command will get ranked solo/duo stats for a League of Legends player for the current season.",color=ctx.author.color)
+  e.set_thumbnail(url="https://styles.redditmedia.com/t5_2rfxx/styles/communityIcon_9yj66cjf8oq61.png")
+  e.add_field(name="**Syntax**", value="`%lolstat <summoner>`", inline=False)
+  await ctx.send(embed=e)
+
+@help.command()
+async def ball(ctx):
+  e = discord.Embed(title="**Ball Help**", description="What will the 8 ball say? Acts as a normal 8 ball.",color=ctx.author.color)
+  bot_pic_url = (await client.fetch_user("810761971979911188")).avatar_url
+  e.set_thumbnail(url=bot_pic_url)
+  e.add_field(name="**Syntax**", value="`%ball`", inline=False)
+  await ctx.send(embed=e)
+
+@help.command()
+async def runes(ctx):
+  e = discord.Embed(title="**Runes Help**", description="The runes command will send a link to the runepage for a champion in a role for League of Legends. You don't need to include punction for void champions and can use simple role names like \"jg\" or \"sup\" for the role.",color=ctx.author.color)
+  e.set_thumbnail(url="https://styles.redditmedia.com/t5_2rfxx/styles/communityIcon_9yj66cjf8oq61.png")
+  e.add_field(name="**Syntax**", value="`%runes <champion> <role>`", inline=False)
+  await ctx.send(embed=e)
+
+@help.command()
+async def hello(ctx):
+  e = discord.Embed(title="**Hello**", description="Hello",color=ctx.author.color)
+  bot_pic_url = (await client.fetch_user("810761971979911188")).avatar_url
+  e.set_thumbnail(url=bot_pic_url)
+  e.add_field(name="**Hello**", value="`Hello`", inline=False)
+  await ctx.send(embed=e)
 
 async def log(text : str):
   with open('logs.txt', 'a') as file:
@@ -63,9 +151,23 @@ async def twitch_is_online(username):
   return json_data['data']
 
 
-@client.command(brief="Add Twitch stream notifications to your server. Type \"%help stream\" for more.", description="Stream Actions:\n\nChannel: Sets the text channel where stream notifications will be sent to. You must type this in the desired text channel.\nAdd: Add a Twitch streamer to your server's notifications. You must type their username exactly. You can find this in the url of their stream (\"twitch.tv/{username}\").\nDisplay: Displays all streamers with notifications for your server.\nDel: Deletes a streamer from your server's notifications (\"%stream del <username>\").")
-async def stream(ctx, action, username : str=""):
+@client.command()
+async def status(ctx):
+  if str(ctx.message.author) == "Sanic#8139":
+    info = f"***{len(client.guilds)} servers***\n\n"
+    sanic = await client.fetch_user("279056911926689793")
+    for guild in client.guilds:
+      info += f"**{guild.name}** ({guild.member_count} players)\n"
+    await sanic.send(info)
+
+
+@client.command()
+@commands.guild_only()
+async def stream(ctx, action : str="", username : str=""):
   if ctx.message.author.guild_permissions.administrator:
+    if action == "":
+      await ctx.send("You must use an action with the stream command. Use `%help stream` for more information.")
+      return
     username = username.lower()
     with open("streams.json", "r") as streams_file:
       try:
@@ -127,9 +229,9 @@ async def stream(ctx, action, username : str=""):
         # deletes streamer from streamers_all if no notifications are set up for them anymore
         if streams['streamers_all'][username]['quantity'] == '0':
           streams['streamers_all'].pop(username)
-        await ctx.send(f"{username} has been removed")
+        await ctx.send(f"**{username}** has been removed")
       else:
-        await ctx.send(f"{username} is not a streamer set up for this server")
+        await ctx.send(f"**{username}** is not a streamer set up for this server")
     
     with open("streams.json", "w") as file:
       json.dump(streams, file)
@@ -139,7 +241,10 @@ async def stream(ctx, action, username : str=""):
 
 
 @client.command(brief="Get stats for a League of Legends player")
-async def lolstat(ctx, *, summoner_name : str):
+async def lolstat(ctx, *, summoner_name : str=""):
+  if summoner_name == "":
+    await ctx.send("You must include the summoner name in this command. For example, `%lolstat <summoner>`.")
+    return
   # attempt to retrieve summoner from name
   try:
     summoner = lol_watcher.summoner.by_name('na1', summoner_name)
@@ -185,7 +290,7 @@ async def lolstat(ctx, *, summoner_name : str):
     rank = solo['tier'].title() + " " + solo['rank']
     await ctx.send(f"{name} is ranked {rank} with a {winrate}% winrate in Solo/Duo")
     await log(f"{name} is ranked {rank} with a {winrate}% winrate in Solo/Duo")
-  else: await ctx.send("**This summoner doesn't play Ranked Solo/Duo.**")
+  else: await ctx.send("This summoner doesn't play Ranked Solo/Duo.")
 
 
 async def get_thumbnail(title : str):
@@ -213,9 +318,12 @@ async def get_thumbnail(title : str):
   else: return "https://lfgroup.gg/wp-content/uploads/2020/05/lfg-banner-transparent.png"
 
 
-@client.command(brief="Create welcome messages for your server. Type \"%help welcome\" for info.", description="Welcome Actions:\nChannel: Set the channel where welcome messages are sent to. The channel will be set to whatever text channel you send this command in.\nAdd: Add a welcome message to your server. Multiple word messages and links are supported. Using a \"=\" in the message will @ the person who joined. Having multiple welcome messages will make it so a random welcome message is sent when a member joins your server. (%welcome add <message>)\nDisplay: Displays a numbered list of all welcome messages for your server.\nDel: Uses indexes from display to delete different messages using \"%welcome del <index>\".")
+@client.command()
+@commands.guild_only()
 async def welcome(ctx, *, action):
   if ctx.message.author.guild_permissions.administrator:
+    if action == "":
+      await ctx.send("You must use an action with the welcome command. Use `%help welcome` for more information.")
     action = action.split()
     with open("welcome.json", "r") as file:
       try:
@@ -388,59 +496,62 @@ async def resume(ctx):
 """
 
 @client.command(brief="Retrieve weather for an inputted city")
-async def weather(ctx, *, city):
-    #request
-    response = requests.get("http://api.openweathermap.org/data/2.5/weather?q=" + city + "&units=imperial&appid=4c0715acb4fc81b82bace4942a843378&lang=en")
-    #status check and output
-    if (response.status_code == 200):
-      #makes a key
-      json_data = json.loads(response.text)
-      #uses key to create easy weather data
-      weather_feels_like = str(json_data["main"]["feels_like"])
-      weather_humidity = str(json_data["main"]["humidity"])
-      weather_description = str(json_data["weather"][0]["description"])
-      weather_description = weather_description.title()
-      weather_country = str(json_data["sys"]["country"])
-      weather_city = str(json_data["name"])
-      weather_clouds = str(json_data["clouds"]["all"])
-      weather_low = str(json_data["main"]["temp_min"])
-      weather_high = str(json_data["main"]["temp_max"])
-      weather_wind = str(json_data["wind"]["speed"])
-      city = weather_city
-      response.status_code = 0
-      #makes embed in discord server
-      embed = discord.Embed(title="Weather",
-      description="Weather in " + city + ", " +
-      weather_country,
-      color=discord.Color.teal())
-      embed.add_field(name="Feels like:",
-      value=weather_feels_like + "ºF",
-      inline=True)
-      embed.add_field(name="Humidity:",
-      value=weather_humidity + "%",
-      inline=True)
-      embed.add_field(name="Description:",
-      value=weather_description,
-      inline=True)
-      embed.add_field(name="Cloudiness:",
-      value=weather_clouds + "%",
-      inline=True)
-      embed.add_field(name="High:",
-      value=weather_high + "ºF",
-      inline=True)
-      embed.add_field(name="Low:",
-      value=weather_low + "ºF",
-      inline=True)
-      embed.add_field(name="Wind Speed:",
-      value=weather_wind + " mph",
-      inline=True)
-      await ctx.send(embed=embed)
-      await log(f"Found weather for {city}")
-      #await ctx.send("Feels like " + weather_feels_like + "ºF\nHumidity: " + weather_humidity + "%\nDescription: " + weather_clouds)
-    else:
-      #if something goes wrong finding the city through the api
-      print("Couldn't find " + city)
-      await ctx.send("Couldn't find " + city + ".")
+async def weather(ctx, *, city : str=""):
+  if city == "":
+    await ctx.send("You must input a city to use the weather command. For example, `%weather <city>`.")
+    return
+  #request
+  response = requests.get("http://api.openweathermap.org/data/2.5/weather?q=" + city + "&units=imperial&appid=4c0715acb4fc81b82bace4942a843378&lang=en")
+  #status check and output
+  if (response.status_code == 200):
+    #makes a key
+    json_data = json.loads(response.text)
+    #uses key to create easy weather data
+    weather_feels_like = str(json_data["main"]["feels_like"])
+    weather_humidity = str(json_data["main"]["humidity"])
+    weather_description = str(json_data["weather"][0]["description"])
+    weather_description = weather_description.title()
+    weather_country = str(json_data["sys"]["country"])
+    weather_city = str(json_data["name"])
+    weather_clouds = str(json_data["clouds"]["all"])
+    weather_low = str(json_data["main"]["temp_min"])
+    weather_high = str(json_data["main"]["temp_max"])
+    weather_wind = str(json_data["wind"]["speed"])
+    city = weather_city
+    response.status_code = 0
+    #makes embed in discord server
+    embed = discord.Embed(title="Weather",
+    description="Weather in " + city + ", " +
+    weather_country,
+    color=discord.Color.teal())
+    embed.add_field(name="Feels like:",
+    value=weather_feels_like + "ºF",
+    inline=True)
+    embed.add_field(name="Humidity:",
+    value=weather_humidity + "%",
+    inline=True)
+    embed.add_field(name="Description:",
+    value=weather_description,
+    inline=True)
+    embed.add_field(name="Cloudiness:",
+    value=weather_clouds + "%",
+    inline=True)
+    embed.add_field(name="High:",
+    value=weather_high + "ºF",
+    inline=True)
+    embed.add_field(name="Low:",
+    value=weather_low + "ºF",
+    inline=True)
+    embed.add_field(name="Wind Speed:",
+    value=weather_wind + " mph",
+    inline=True)
+    await ctx.send(embed=embed)
+    await log(f"Found weather for {city}")
+    #await ctx.send("Feels like " + weather_feels_like + "ºF\nHumidity: " + weather_humidity + "%\nDescription: " + weather_clouds)
+  else:
+    #if something goes wrong finding the city through the api
+    print("Couldn't find " + city)
+    await ctx.send("Couldn't find " + city + ".")
 
 
 @client.command(brief="What will the 8 ball say?")
@@ -467,10 +578,11 @@ async def flip(ctx):
     await ctx.send("*Tails*")
 
 
-@client.command(brief="Type \"%help lfg\" to learn how to create an LFG")
+@client.command()
+@commands.guild_only()
 async def lfg(ctx, game : str="", goal : str='0', numHours : float=.5, scheduled: bool=False):
   if game == "":
-    await ctx.send("Use the \"%help lfg\" command to learn how to create an lfg message!")
+    await ctx.send("You have no game inputted. Use the `%help lfg` command to learn how to create an lfg message.")
     return
   if numHours <= 200.00 and numHours > 0.00 and int(goal) > 1:
     # create buttons
@@ -879,7 +991,13 @@ async def on_raw_reaction_add(payload):
 """
 
 @client.command(brief="Retrieves runes for a LoL champ")
-async def runes(ctx, champion : str, role : str):
+async def runes(ctx, champion : str="", role : str=""):
+  if champion == "":
+    await ctx.send("You must include a champion for the runes command. For example, `%runes <champion> <role>`.")
+    return
+  if role == "":
+    await ctx.send("You must include a role for the runes command. For example, `%runes <champion> <role>`.")
+    return
   if role == "mid": role = "middle"
   elif role == "jg": role = "jungle"
   elif role == "sup": role = "support"

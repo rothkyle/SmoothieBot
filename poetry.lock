@@ -136,7 +136,7 @@ python-versions = "*"
 
 [[package]]
 name = "discord-components"
-version = "2.1.0"
+version = "2.1.1"
 description = "An unofficial library for discord components."
 category = "main"
 optional = false
@@ -266,14 +266,6 @@ optional = false
 python-versions = ">=3.6"
 
 [[package]]
-name = "pokereval"
-version = "0.2.0"
-description = "A pure python poker hand evaluator for 5, 6, 7 cards"
-category = "main"
-optional = false
-python-versions = "*"
-
-[[package]]
 name = "python-dateutil"
 version = "2.8.2"
 description = "Extensions to the standard Python datetime module"
@@ -395,7 +387,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "b609c0e55312ea10007da79080947f0b715ca80548c0fc8c6c4fbe4ca7432227"
+content-hash = "b5543fbbd8109fa3f8c125935c613d5c91d7dfc790959e105679e35942836ccd"
 
 [metadata.files]
 aiohttp = [
@@ -481,8 +473,8 @@ discord = [
     {file = "discord-1.7.3.tar.gz", hash = "sha256:846dd3d66888c2e0a8bd9120d8778a0fe088c003a7f6451668497f14e322a304"},
 ]
 discord-components = [
-    {file = "discord_components-2.1.0-py3-none-any.whl", hash = "sha256:7e24cda0d342aff83f08bee467b9a5eb96d2135f8ac9d1376275134e3437493f"},
-    {file = "discord_components-2.1.0.tar.gz", hash = "sha256:6e1297e834eda4c46b30ac378a2f552a3f9461de4c1a682a77dba2ee2764f804"},
+    {file = "discord_components-2.1.1-py3-none-any.whl", hash = "sha256:8935995a0f60aff2b855e5bf71e5c391c161a3dcf5cdfdbc2de66fcffd3c3292"},
+    {file = "discord_components-2.1.1.tar.gz", hash = "sha256:89c52a8686ca3afaedcf127586839c85f5d144e4af41acb070f141ab6c31e6dc"},
 ]
 "discord.py" = [
     {file = "discord.py-1.7.3-py3-none-any.whl", hash = "sha256:c6f64db136de0e18e090f6752ea68bdd4ab0a61b82dfe7acecefa22d6477bb0c"},
@@ -661,10 +653,6 @@ pillow = [
     {file = "Pillow-8.3.2-pp37-pypy37_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a66566f8a22561fc1a88dc87606c69b84fa9ce724f99522cf922c801ec68f5c1"},
     {file = "Pillow-8.3.2-pp37-pypy37_pp73-win_amd64.whl", hash = "sha256:ce651ca46d0202c302a535d3047c55a0131a720cf554a578fc1b8a2aff0e7d96"},
     {file = "Pillow-8.3.2.tar.gz", hash = "sha256:dde3f3ed8d00c72631bc19cbfff8ad3b6215062a5eed402381ad365f82f0c18c"},
-]
-pokereval = [
-    {file = "pokereval-0.2.0-py3-none-any.whl", hash = "sha256:cbcdac21a2cbd329998c2ab39cd2e30ad4ec4215c1bf7e0ff2ff017c076472f4"},
-    {file = "pokereval-0.2.0.tar.gz", hash = "sha256:b85ab5cc10f9392da474b5538803ea1a89ff41a02c231f498497b3bba95f2e3a"},
 ]
 python-dateutil = [
     {file = "python-dateutil-2.8.2.tar.gz", hash = "sha256:0123cacc1627ae19ddf3c27a5de5bd67ee4586fbdd6440d9748f8abb483d3e86"},
