@@ -17,6 +17,7 @@ from discord_components import *
 import topgg
 
 load_dotenv()
+daKey = os.getenv('daKey')
 streams = os.getenv('streams')
 random.seed()
 intents = discord.Intents.default()
@@ -901,4 +902,4 @@ async def check():
             with open("lfg.json", "w") as file:
                 json.dump(all_lfg, file)
             await asyncio.sleep(20)
-client.run("ODEwNzYxOTcxOTc5OTExMTg4.YCoW7Q.Ag57uE9JWPcFAQY1LkkUO_DJef0")
+client.run(daKey)
