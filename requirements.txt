@@ -1,0 +1,8 @@
+discord
+pytz
+urllib3
+validators
+riotwatcher
+discord-components
+topggpy
+python-dotenv
