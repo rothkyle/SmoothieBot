@@ -18,7 +18,6 @@ import topgg
 
 load_dotenv()
 daKey = os.getenv('daKey')
-streams = os.getenv('streams')
 random.seed()
 intents = discord.Intents.default()
 intents.members = True
@@ -48,9 +47,9 @@ async def on_ready():
     DiscordComponents(client)
     print("Bot is up and running")
     print(f"Smoothie Bot is currently in {len(client.guilds)} servers!")
+    check.start()
     asyncio.create_task(buttoner())
     asyncio.create_task(check())
-    update_stats.start()
 
 @tasks.loop(hours=1)
 async def update_stats():
@@ -203,10 +202,16 @@ async def stream(ctx, action : str="", username : str=""):
     
     # add streamer to checker
     elif action == 'add':
-      if username in streams[guild]['streamers']:
+      if username == "":
+        await ctx.send("Please include the streamer's username. For example, `%stream add xqcow`}")
+      elif username in streams[guild]['streamers']:
         await ctx.send("Streamer already added.")
       else:
-        streams[guild]['streamers'].append(username)
+        if guild in streams:
+        	streams[guild]['streamers'].append(username)
+        else:
+            await ctx.send("You must set the stream notifications channel using `%stream channel` in your desired channel.")
+            return
         # update streamers_all in streams.json
         if username not in streams['streamers_all']:
           streamer_info = {
@@ -430,7 +435,6 @@ async def on_member_join(member):
       await log(f"Welcome message \"{message}\" sent to {member.guild.name}")
     except:
       print("No server messages")
-
 
 @client.command(brief="Retrieve weather for an inputted city")
 async def weather(ctx, *, city : str=""):
@@ -721,9 +725,9 @@ async def buttoner():
             await log(f"{res.author.name} can't leave an LFG if not in LFG.")
             await res.respond(content="You can't leave an LFG if you're not in the LFG.")
 
-#@tasks.loop(seconds = 20)
+@tasks.loop(seconds = 20)
 async def check():
-    while True:
+    #while True:
             await client.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name=f"{len(client.guilds)} servers | %help"))
             with open("streams.json", "r") as file:
                 try:
@@ -901,5 +905,6 @@ async def check():
                 print(f"Deleting file {file}...")
             with open("lfg.json", "w") as file:
                 json.dump(all_lfg, file)
-            await asyncio.sleep(20)
+            #await asyncio.sleep(20)
+update_stats.start()
 client.run(daKey)
