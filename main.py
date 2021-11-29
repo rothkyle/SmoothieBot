@@ -47,9 +47,9 @@ async def on_ready():
     DiscordComponents(client)
     print("Bot is up and running")
     print(f"Smoothie Bot is currently in {len(client.guilds)} servers!")
-    check.start()
+    if not check.is_running():
+    	check.start()
     asyncio.create_task(buttoner())
-    asyncio.create_task(check())
 
 @tasks.loop(hours=1)
 async def update_stats():
